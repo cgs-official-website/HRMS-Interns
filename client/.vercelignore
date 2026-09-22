@@ -1,0 +1,14 @@
+.git
+.vercel
+node_modules
+dist
+dist-ssr
+*.zip
+*.pdf
+hrms
+hrms/
+serviceAccountKey.json
+.env*
+backup_db.cjs
+recover.cjs
+dump.json

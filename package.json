@@ -1,0 +1,32 @@
+{
+  "name": "hrms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise Human Resource Management System (Fullstack Monorepo)",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "node server/src/index.js",
+    "server": "node server/src/index.js",
+    "dev": "npm run dev --workspace=client",
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "echo 'Backend deployment ready'",
+    "build:client": "npm run build --workspace=client",
+    "install:all": "npm install && npm install --workspace=client && npm install --workspace=server",
+    "graphify": "python server/scripts/build-graphify.py"
+  },
+  "keywords": [
+    "hrms",
+    "attendance",
+    "payroll",
+    "react",
+    "nodejs",
+    "postgresql",
+    "railway"
+  ],
+  "author": "",
+  "license": "ISC"
+}

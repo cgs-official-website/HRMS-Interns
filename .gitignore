@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Production Build outputs
+dist/
+dist-ssr/
+build/
+client/dist/
+server/dist/
+.vercel
+
+# Environment variables, credentials & secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+serviceAccountKey.json
+*.json.key
+intern-attendance-web-*.json
+server/backup/*.json
+server/serviceAccountKey.json
+
+# Graphify & analysis artifacts
+graphify-out/
+*/graphify-out/
+**/graphify-out/
+
+# System and logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE & Tooling
+.vscode/
+.idea/
+.agents/
+.qodo/
+*.tmp
+*.temp
+.cache/
