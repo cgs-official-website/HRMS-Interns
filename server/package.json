@@ -15,9 +15,11 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.6.0",
     "nodemailer": "^9.1.0",
     "pg": "^8.13.3",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "firebase-admin": "^14.3.0"

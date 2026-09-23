@@ -2,6 +2,7 @@ import http from "http";
 import app from "./app.js";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import { startTaskScheduler } from "./services/taskScheduler.js";
 
 dotenv.config();
 
@@ -50,4 +51,6 @@ server.on("error", (err) => {
 server.listen(PORT, () => {
   console.log(`🚀 HRMS Backend Server running on port ${PORT}`);
   console.log(`📡 Health check available at: http://localhost:${PORT}/api/health`);
+  // Start task end-time scheduler
+  startTaskScheduler();
 });

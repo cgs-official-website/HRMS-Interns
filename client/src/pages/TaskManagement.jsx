@@ -13,7 +13,11 @@ import {
   deleteDailyReport,
   subscribeToProjects,
   subscribeToUserTasks,
-  updateUserTasks
+  updateUserTasks,
+  createTask,
+  updateTask,
+  subscribeToTasks,
+  getAllRegisteredUsers
 } from "../firebase";
 import { CheckCircle, Clock, Send, MessageSquare, Play, X, FileText, Download, Square, Activity, Plus, Trash2 } from "lucide-react";
 import jsPDF from "jspdf";
@@ -29,7 +33,21 @@ export default function TaskManagement() {
   
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // Admin task assignment state
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "superadmin" || currentUser?.isAdmin;
+  const isManager = isAdmin || currentUser?.isProjectManager || currentUser?.role === "manager";
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [assignTitle, setAssignTitle] = useState("");
+  const [assignDesc, setAssignDesc] = useState("");
+  const [assignTo, setAssignTo] = useState("");
+  const [assignDate, setAssignDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assignStart, setAssignStart] = useState("09:00");
+  const [assignEnd, setAssignEnd] = useState("18:00");
+  const [assignPriority, setAssignPriority] = useState("medium");
+  const [assignLoading, setAssignLoading] = useState(false);
+
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAllReportsModal, setShowAllReportsModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -59,6 +77,10 @@ export default function TaskManagement() {
     const unsub = subscribeToProjects(currentUser.companyId, (data) => {
       setProjects(data || []);
     });
+    // Load users for admin task assignment
+    if (isManager && currentUser?.companyId) {
+      getAllRegisteredUsers(currentUser.companyId).then(users => setAllUsers(users || [])).catch(() => {});
+    }
     return unsub;
   }, [currentUser]);
 
@@ -248,6 +270,12 @@ export default function TaskManagement() {
     setSubmitting(true);
     try {
       await addTaskReport(selectedTask.id, currentUser.uid, selectedTask.assignedBy, reportText);
+
+      // Mark task report_status = submitted in DB (prevents push notification)
+      const taskId = selectedTask.id || selectedTask._id;
+      if (taskId && taskId.startsWith("task_")) {
+        updateTask(taskId, { report_status: "submitted", reportStatus: "submitted" }).catch(() => {});
+      }
       
       const newReport = {
         id: "rep_" + Date.now(),
@@ -284,6 +312,43 @@ export default function TaskManagement() {
       showToast("Failed to submit report", "error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAssignTimedTask = async (e) => {
+    e.preventDefault();
+    if (!assignTitle.trim()) return showToast("Task title is required", "warning");
+    if (!assignTo) return showToast("Please select an employee", "warning");
+    if (!assignDate) return showToast("Task date is required", "warning");
+    if (!assignEnd) return showToast("End time is required", "warning");
+    if (assignStart >= assignEnd) return showToast("End time must be after start time", "warning");
+
+    setAssignLoading(true);
+    try {
+      await createTask({
+        title: assignTitle,
+        description: assignDesc,
+        assignedTo: assignTo,
+        assigneeId: assignTo,
+        companyId: currentUser.companyId,
+        priority: assignPriority,
+        taskDate: assignDate,
+        task_date: assignDate,
+        startTime: assignStart,
+        start_time: assignStart,
+        endTime: assignEnd,
+        end_time: assignEnd,
+        dueDate: assignDate
+      });
+      showToast("Timed task assigned successfully!", "success");
+      setShowAssignModal(false);
+      setAssignTitle(""); setAssignDesc(""); setAssignTo("");
+      setAssignDate(new Date().toISOString().split("T")[0]);
+      setAssignStart("09:00"); setAssignEnd("18:00"); setAssignPriority("medium");
+    } catch (err) {
+      showToast("Failed to assign task", "error");
+    } finally {
+      setAssignLoading(false);
     }
   };
 
@@ -501,11 +566,21 @@ export default function TaskManagement() {
     <div className="animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-black text-text-main tracking-tight">Task & Activity Management</h1>
+          <h1 className="text-2xl font-black text-text-main tracking-tight">Task &amp; Activity Management</h1>
           <p className="text-sm text-text-mut font-medium mt-1">
             Your current projects: <span className="font-bold text-brand-primary">{(currentUser.projects && currentUser.projects.length > 0) ? currentUser.projects.join(', ') : (currentUser.project || "Unassigned")}</span>
           </p>
         </div>
+        {/* Admin: Assign Timed Task Button */}
+        {isManager && (
+          <button
+            onClick={() => setShowAssignModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-bold rounded-[10px] shadow-sm transition-all cursor-pointer"
+          >
+            <Plus size={15} />
+            Assign Timed Task
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -578,11 +653,32 @@ export default function TaskManagement() {
                           </button>
                         </div>
                         {task.project && (
-                          <div className="mb-3 text-left">
+                          <div className="mb-2 text-left">
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-[4px] bg-brand-primary/10 text-brand-primary uppercase tracking-wider">{task.project}</span>
                           </div>
                         )}
-                        
+
+                        {/* ── Timed Task Info ── */}
+                        {(task.task_date || task.start_time || task.end_time) && (
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            {task.task_date && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-[6px] bg-indigo-500/10 text-indigo-500">
+                                📅 {task.task_date}
+                              </span>
+                            )}
+                            {task.start_time && task.end_time && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-[6px] bg-violet-500/10 text-violet-500">
+                                🕐 {task.start_time} – {task.end_time}
+                              </span>
+                            )}
+                            {task.report_status === "submitted" ? (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">✓ Report Submitted</span>
+                            ) : (task.task_date || task.end_time) ? (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">⏳ Report Pending</span>
+                            ) : null}
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-4 text-[10px] font-semibold text-text-sec mb-4">
                           <div className="flex items-center gap-1 bg-bg-base px-2 py-1 rounded-[6px]">
                             <Clock size={12} className="text-brand-primary" />
@@ -1234,6 +1330,100 @@ export default function TaskManagement() {
                   className="py-2.5 px-5 bg-brand-primary hover:bg-brand-hover text-white text-xs font-bold rounded-[12px] shadow-md shadow-brand-primary/10 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? (uploadingFile ? "Uploading..." : "Submitting...") : "Save Log"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Assign Timed Task Modal (Admin/Manager only) ── */}
+      {showAssignModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)}>
+          <div className="bg-bg-card border border-border-card rounded-[24px] w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-extrabold text-white">Assign Timed Task</h2>
+                <p className="text-[10px] text-white/70 mt-0.5">Employee will be notified when task end time is reached</p>
+              </div>
+              <button onClick={() => setShowAssignModal(false)} className="text-white/70 hover:text-white transition-colors cursor-pointer"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAssignTimedTask} className="p-6 space-y-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-text-sec">Task Title *</label>
+                <input
+                  type="text" value={assignTitle} onChange={e => setAssignTitle(e.target.value)}
+                  placeholder="e.g. Prepare weekly report"
+                  className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-text-sec">Description</label>
+                <textarea
+                  value={assignDesc} onChange={e => setAssignDesc(e.target.value)}
+                  rows={2} placeholder="Optional task details..."
+                  className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all resize-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-text-sec">Assign To *</label>
+                <select
+                  value={assignTo} onChange={e => setAssignTo(e.target.value)}
+                  className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all appearance-none"
+                  required
+                >
+                  <option value="">Select employee...</option>
+                  {allUsers.filter(u => u.role === "employee" || u.role === "manager").map(u => (
+                    <option key={u.id || u.uid} value={u.id || u.uid}>{u.name} ({u.employee_id || u.employeeId || u.email})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-text-sec">Date *</label>
+                  <input type="date" value={assignDate} onChange={e => setAssignDate(e.target.value)}
+                    className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-text-sec">Start Time</label>
+                  <input type="time" value={assignStart} onChange={e => setAssignStart(e.target.value)}
+                    className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-text-sec">End Time *</label>
+                  <input type="time" value={assignEnd} onChange={e => setAssignEnd(e.target.value)}
+                    className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-text-sec">Priority</label>
+                <select value={assignPriority} onChange={e => setAssignPriority(e.target.value)}
+                  className="px-3 py-2.5 border border-border-card rounded-[10px] bg-bg-base/30 text-xs text-text-main outline-none focus:border-brand-primary transition-all appearance-none"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div className="bg-violet-500/5 border border-violet-500/20 rounded-[10px] p-3 text-[10px] text-violet-600 font-semibold">
+                🔔 A push notification will be sent to the employee if no report is submitted by the end time.
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAssignModal(false)}
+                  className="flex-1 py-2.5 bg-bg-base border border-border-card text-xs font-bold text-text-sec rounded-[10px] transition-colors hover:bg-border-card cursor-pointer"
+                >Cancel</button>
+                <button type="submit" disabled={assignLoading}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-bold rounded-[10px] shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {assignLoading ? "Assigning..." : "Assign Task"}
                 </button>
               </div>
             </form>

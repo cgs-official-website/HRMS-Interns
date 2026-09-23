@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { usePushNotification } from "../hooks/usePushNotification";
 import html2pdf from "html2pdf.js";
 const zunaLogo = "data:image/png;base64,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";
 
@@ -88,6 +89,9 @@ export default function UserDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
+
+  // Web Push Notification hook
+  const { isSupported: pushSupported, permission: pushPermission, isSubscribed, isLoading: pushLoading, error: pushError, enableNotifications, disableNotifications } = usePushNotification();
 
   // Dynamic Environment Settings
   const [envConfig, setEnvConfig] = useState({ breaksPerDay: 3, breakDurationMinutes: 30 });
@@ -2457,6 +2461,71 @@ export default function UserDashboard() {
               </div>
             </div>
           )}
+
+            {/* ── Enable Task Notifications Card ── */}
+            {pushSupported && (
+              <div className="bg-bg-card border border-border-card rounded-[24px] overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-white text-left flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider block">Task Alerts</span>
+                    <h3 className="font-extrabold text-base text-white mt-0.5 flex items-center gap-2">
+                      Task Notifications
+                    </h3>
+                  </div>
+                  <div className="bg-white/20 p-2 rounded-full flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="p-5 text-left">
+                  {pushPermission === "denied" ? (
+                    <div className="text-xs text-brand-danger font-semibold bg-brand-danger/5 border border-brand-danger/20 rounded-[12px] p-3">
+                      🚫 Notifications are blocked in your browser. Enable them via browser Settings → Site Settings → Notifications.
+                    </div>
+                  ) : isSubscribed ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-brand-success">
+                        <span className="w-2 h-2 rounded-full bg-brand-success animate-pulse inline-block" />
+                        Notifications are active. You will receive a reminder every 1 hour during working hours (9 AM – 6 PM).
+                      </div>
+                      <button
+                        onClick={disableNotifications}
+                        disabled={pushLoading}
+                        className="w-full py-2 px-4 bg-bg-base border border-border-card text-xs font-bold text-text-sec rounded-[10px] hover:border-brand-danger/40 hover:text-brand-danger transition-all cursor-pointer"
+                      >
+                        {pushLoading ? "Disabling..." : "Disable Notifications"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-text-sec leading-relaxed font-semibold">
+                        Get a browser reminder every 1 hour during working hours (9 AM – 6 PM) to submit your hourly work report.
+                        Works even when this tab is in the background.
+                      </p>
+                      {pushError && (
+                        <p className="text-xs text-brand-danger font-semibold">{pushError}</p>
+                      )}
+                      <button
+                        onClick={async () => {
+                          const ok = await enableNotifications();
+                          if (ok) showToast("✅ Task notifications enabled!", "success");
+                        }}
+                        disabled={pushLoading}
+                        className="w-full py-2.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-bold rounded-[10px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
+                      >
+                        {pushLoading ? (
+                          <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Enabling...</>
+                        ) : (
+                          <>Enable Notifications</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Birthdays & News Card */}
             <div className="bg-bg-card border border-border-card rounded-[24px] overflow-hidden shadow-sm">
               <div className="bg-gradient-to-r from-brand-primary to-indigo-600 p-5 text-white text-left flex items-center justify-between">

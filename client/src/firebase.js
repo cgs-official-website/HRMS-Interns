@@ -1664,7 +1664,7 @@ export const getExternalLinkByToken = async (token) => {
 };
 
 // ----------------------------------------------------
-// NOTIFICATIONS & REPORTS
+// NOTIFICATIONS, PUSH & REPORTS
 // ----------------------------------------------------
 
 export const createNotification = async () => true;
@@ -1673,6 +1673,54 @@ export const subscribeToNotifications = (userId, callback) => {
   return () => {};
 };
 export const markNotificationRead = async () => true;
+
+// Web Push Notification API Wrappers
+export const savePushSubscription = async (subscription) => {
+  try {
+    const sub = typeof subscription.toJSON === "function" ? subscription.toJSON() : subscription;
+    return await apiFetch("/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.keys?.p256dh || "",
+          auth: sub.keys?.auth || ""
+        }
+      })
+    });
+  } catch (e) {
+    console.error("savePushSubscription error:", e);
+    return null;
+  }
+};
+
+export const removePushSubscription = async (endpoint = null) => {
+  try {
+    return await apiFetch("/push/unsubscribe", {
+      method: "DELETE",
+      body: JSON.stringify(endpoint ? { endpoint } : {})
+    });
+  } catch (e) {
+    return null;
+  }
+};
+
+export const getPushSubscriptionStatus = async () => {
+  try {
+    return await apiFetch("/push/status");
+  } catch (e) {
+    return { isSubscribed: false };
+  }
+};
+
+export const getVapidPublicKey = async () => {
+  try {
+    const res = await apiFetch("/push/vapid-key");
+    return res?.publicKey || null;
+  } catch (e) {
+    return null;
+  }
+};
 
 export const subscribeToDailyReports = (companyId, callback) => {
   let isMounted = true;

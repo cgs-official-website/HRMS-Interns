@@ -58,12 +58,21 @@ export const createTask = async (req, res) => {
       assignedTo,
       priority = "medium",
       dueDate,
-      companyId
+      companyId,
+      taskDate,
+      task_date,
+      startTime,
+      start_time,
+      endTime,
+      end_time
     } = req.body;
 
     const targetCompanyId = companyId || req.user?.companyId;
     const creatorId = req.user?.id || null;
     const targetAssignee = assigneeId || assignedTo || null;
+    const resolvedTaskDate = taskDate || task_date || null;
+    const resolvedStartTime = startTime || start_time || null;
+    const resolvedEndTime = endTime || end_time || null;
 
     if (!title) {
       return res.status(400).json({ error: "Task title is required." });
@@ -71,10 +80,10 @@ export const createTask = async (req, res) => {
 
     const id = "task_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
     const result = await query(
-      `INSERT INTO tasks (id, company_id, project_id, title, description, assigned_to, created_by, priority, due_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+      `INSERT INTO tasks (id, company_id, project_id, title, description, assigned_to, created_by, priority, due_date, status, task_date, start_time, end_time, report_status, notification_sent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11, $12, 'pending', FALSE)
        RETURNING *`,
-      [id, targetCompanyId, projectId || null, title, description || "", targetAssignee, creatorId, priority, dueDate || null]
+      [id, targetCompanyId, projectId || null, title, description || "", targetAssignee, creatorId, priority, dueDate || null, resolvedTaskDate, resolvedStartTime, resolvedEndTime]
     );
 
     res.status(201).json(result.rows[0]);
@@ -95,7 +104,8 @@ export const updateTask = async (req, res) => {
 
     const allowed = [
       "title", "description", "project_id", "assigned_to", "status",
-      "priority", "due_date", "metadata"
+      "priority", "due_date", "metadata",
+      "task_date", "start_time", "end_time", "report_status", "notification_sent"
     ];
 
     for (const key of Object.keys(updates)) {
@@ -103,12 +113,22 @@ export const updateTask = async (req, res) => {
       if (key === "assigneeId") snakeKey = "assigned_to";
       if (key === "projectId") snakeKey = "project_id";
       if (key === "dueDate") snakeKey = "due_date";
+      if (key === "taskDate") snakeKey = "task_date";
+      if (key === "startTime") snakeKey = "start_time";
+      if (key === "endTime") snakeKey = "end_time";
+      if (key === "reportStatus") snakeKey = "report_status";
+      if (key === "notificationSent") snakeKey = "notification_sent";
 
       if (allowed.includes(snakeKey)) {
         fields.push(`${snakeKey} = $${idx}`);
         values.push(updates[key]);
         idx++;
       }
+    }
+
+    // Auto-set report_submitted_at when report is submitted
+    if (updates.report_status === "submitted" || updates.reportStatus === "submitted") {
+      fields.push(`report_submitted_at = CURRENT_TIMESTAMP`);
     }
 
     if (fields.length === 0) {
