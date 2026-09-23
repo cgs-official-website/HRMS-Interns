@@ -733,7 +733,7 @@ export const startTaskTimer = async (userId, taskId) => {
   }
 };
 
-export const stopTaskTimer = async (userId, taskId) => {
+export const stopTaskTimer = async (userId, taskId, pmId) => {
   try {
     let cur = null;
     try {
@@ -746,6 +746,27 @@ export const stopTaskTimer = async (userId, taskId) => {
         const user = await apiFetch(`/users/${userId}`);
         tasks = user?.tasks || [];
       } catch {}
+    }
+
+    const targetTask = tasks.find(t => t.id === taskId);
+
+    if (targetTask?.timerStartedAt) {
+      const startedMs = new Date(targetTask.timerStartedAt).getTime();
+      const elapsedMs = Math.max(0, Date.now() - startedMs);
+      const elapsedMinutes = Math.round(elapsedMs / 60000);
+
+      if (elapsedMinutes > 0) {
+        const h = Math.floor(elapsedMinutes / 60);
+        const m = elapsedMinutes % 60;
+        const durationText = `${h > 0 ? h + "h " : ""}${m}m`;
+
+        await addTaskReport({
+          taskId,
+          userId,
+          pmId: pmId || targetTask.assignedBy,
+          content: `Worked for ${durationText}`
+        }).catch(() => {});
+      }
     }
 
     const updatedTasks = tasks.map(t => {
