@@ -1829,6 +1829,13 @@ export const verifyCompanyDomain = async (domain) => {
   });
 };
 
+export const sendRegistrationLinkEmail = async (companyId, email) => {
+  return apiFetch(`/companies/${companyId}/send-registration-link`, {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+};
+
 export const getLandingPageConfig = async () => null;
 export const updateLandingPageConfig = async () => true;
 

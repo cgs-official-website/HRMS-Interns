@@ -8,7 +8,8 @@ import {
   addCompanyDomain,
   deleteCompanyDomain,
   verifyCompanyDomain,
-  deleteCompany
+  deleteCompany,
+  sendRegistrationLink
 } from "../controllers/companyController.js";
 import { authenticateToken, requireAdmin } from "../middlewares/auth.js";
 
@@ -26,6 +27,7 @@ router.post("/", authenticateToken, requireAdmin, createCompany);
 router.patch("/:id", authenticateToken, requireAdmin, updateCompany);
 router.put("/:id", authenticateToken, requireAdmin, updateCompany);
 router.delete("/:id", authenticateToken, requireAdmin, deleteCompany);
+router.post("/:id/send-registration-link", authenticateToken, requireAdmin, sendRegistrationLink);
 
 export default router;
 
