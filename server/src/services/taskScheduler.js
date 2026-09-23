@@ -1,12 +1,12 @@
 // ============================================================
 // HOURLY REPORT REMINDER SCHEDULER — IST (Asia/Kolkata)
 //
-// Fires at the TOP OF EVERY HOUR (0 * * * *)
+// Checks every minute and runs only at the exact start of an hour.
 // Working hours: 09:00 – 18:00 IST
 //
 // For each employee who has an active push subscription:
 //   1. Check if a reminder was already sent for this interval → skip if yes
-//   2. Check if a task_report was submitted during the previous hour → skip if yes
+//   2. Check if a task_report was submitted during the current hour interval → skip if yes
 //   3. Otherwise → send ONE Web Push "Report Reminder" notification
 //   4. Insert a row into hourly_report_reminders to prevent duplicates
 //
@@ -24,8 +24,8 @@ const WORK_END_HOUR   = 18;  // 18:00 IST — last reminder sent at 18:00 (for 1
 // ─── IST Helpers ─────────────────────────────────────────────
 
 /**
- * Returns the current IST date and hour.
- * { dateStr: "YYYY-MM-DD", hour: 14, minuteStr: "14:00", prevHourStr: "13:00" }
+ * Returns the current IST date and the completed wall-clock hour interval.
+ * Breaks and attendance state are intentionally not part of this calculation.
  */
 const getISTInfo = () => {
   const now = new Date();
@@ -36,15 +36,15 @@ const getISTInfo = () => {
   const month = String(istDate.getMonth() + 1).padStart(2, "0");
   const day   = String(istDate.getDate()).padStart(2, "0");
   const hour  = istDate.getHours();     // 0-23
-  const min   = istDate.getMinutes();
+  const minute = istDate.getMinutes();
 
   const pad = (n) => String(n).padStart(2, "0");
 
   const dateStr      = `${year}-${month}-${day}`;
-  const intervalEnd  = `${pad(hour)}:${pad(min)}`; // current time (top of hour = HH:00)
-  const intervalStart= `${pad(hour - 1)}:00`;       // one hour ago
+  const intervalStart = `${pad(hour)}:00`;
+  const intervalEnd   = `${pad(hour + 1)}:00`;
 
-  return { dateStr, hour, min, intervalStart, intervalEnd };
+  return { dateStr, hour, minute, intervalStart, intervalEnd };
 };
 
 /**
@@ -65,14 +65,13 @@ const istTimeToUTCiso = (dateStr, timeStr) => {
 // ─── Core Logic ──────────────────────────────────────────────
 
 const checkAndSendReminders = async () => {
-  const { dateStr, hour, min, intervalStart, intervalEnd } = getISTInfo();
+  const { dateStr, hour, minute, intervalStart, intervalEnd } = getISTInfo();
 
-  // Only run inside working hours: hour must be > WORK_START_HOUR and <= WORK_END_HOUR
-  // e.g. cron fires at 10:00 → hour=10, remind for 09:00–10:00 ✅
-  //      cron fires at 09:00 → hour=9,  nothing to remind yet (shift just started) ✅
-  //      cron fires at 18:00 → hour=18, remind for 17:00–18:00 ✅
-  if (hour < WORK_START_HOUR + 1 || hour > WORK_END_HOUR) {
-    console.log(`[HourlyReminder] Outside working hours (${hour}:00 IST) — skipping.`);
+  // The office clock is the only trigger. Breaks and attendance state are ignored.
+  if (minute !== 0 || hour < WORK_START_HOUR || hour > WORK_END_HOUR) {
+    if (minute === 0) {
+      console.log(`[HourlyReminder] Outside working hours (${hour}:00 IST) — skipping.`);
+    }
     return;
   }
 
@@ -163,10 +162,16 @@ const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
 
     if (reportFound) {
       // Report submitted — record it, but don't send notification
-      await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, false, true);
+      const claimed = await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, false, true);
+      if (!claimed) return;
       console.log(`[HourlyReminder] ✅ Report found for user ${user.userId} (${intervalStart}–${intervalEnd}) — no push needed.`);
       return;
     }
+
+    // Claim the employee/hour before sending. The unique key makes this atomic
+    // across restarts or multiple scheduler instances.
+    const claimed = await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, false, false);
+    if (!claimed) return;
 
     // 3 ── No report found → send Web Push notification
     const payload = {
@@ -205,7 +210,7 @@ const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
     }
 
     // 4 ── Record that we sent the reminder (prevents re-sending if server restarts)
-    await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, sentCount > 0, false);
+    await markReminderSent(user.userId, dateStr, intervalStart, sentCount > 0);
 
     console.log(
       sentCount > 0
@@ -226,7 +231,7 @@ const insertReminderRecord = async (
   notificationSent, reportFound
 ) => {
   const id = "hrr_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-  await query(
+  const result = await query(
     `INSERT INTO hourly_report_reminders
        (id, user_id, company_id, reminder_date, interval_start, interval_end,
         notification_sent, notification_sent_at, report_found)
@@ -239,27 +244,37 @@ const insertReminderRecord = async (
       reportFound
     ]
   );
+  return result.rowCount > 0;
+};
+
+const markReminderSent = async (userId, date, intervalStart, notificationSent) => {
+  await query(
+    `UPDATE hourly_report_reminders
+     SET notification_sent = $4,
+         notification_sent_at = CASE WHEN $4 THEN $5 ELSE NULL END
+     WHERE user_id = $1 AND reminder_date = $2 AND interval_start = $3`,
+    [userId, date, intervalStart, notificationSent, notificationSent ? new Date().toISOString() : null]
+  );
 };
 
 // ─── Scheduler Export ─────────────────────────────────────────
 
 /**
  * Start the hourly report reminder scheduler.
- * Fires at the top of every hour (IST) between 09:00 and 18:00.
+ * Runs at every exact working-hour boundary (IST), from 09:00 through 18:00.
  */
 export const startTaskScheduler = () => {
   console.log("⏰ Hourly Report Reminder Scheduler started (fires at top of each hour, IST)");
   console.log(`   Working hours: ${WORK_START_HOUR}:00 – ${WORK_END_HOUR}:00 IST`);
 
-  // Fire at the top of every hour
-  cron.schedule("0 * * * *", async () => {
+  // Check every minute; the handler gates execution to minute 00 in IST.
+  cron.schedule("* * * * *", async () => {
     await checkAndSendReminders();
   }, {
     timezone: "Asia/Kolkata"
   });
 
-  // On startup: if server restarts mid-hour during working hours,
-  // run a check immediately so no interval is missed.
-  // This is safe because hourly_report_reminders prevents duplicates.
+  // A startup check is also gated to an exact hour, so restarts cannot shift
+  // the office-clock schedule or create a non-hour interval.
   checkAndSendReminders().catch(() => {});
 };
