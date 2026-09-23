@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useModal } from "../context/ModalContext";
-import { 
+import {
   subscribeToAllUsers,
   subscribeToTaskReports,
   subscribeToDailyReports,
@@ -12,16 +12,16 @@ import {
   addTeamMemberToProject,
   updateUserTasks
 } from "../firebase";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Lock, 
-  User, 
-  Briefcase, 
-  Clock, 
-  FileText, 
-  CheckCircle, 
-  X, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  User,
+  Briefcase,
+  Clock,
+  FileText,
+  CheckCircle,
+  X,
   MessageSquare,
   ClipboardList,
   AlertCircle,
@@ -75,7 +75,7 @@ export default function ProjectCalendar() {
   const LOGS_PER_PAGE = 15;
 
   const isAdmin = currentUser?.role === "admin";
-  
+
   // Memoized managed projects list for the current user
   const managedProjects = React.useMemo(() => {
     if (isAdmin) return projects;
@@ -88,17 +88,17 @@ export default function ProjectCalendar() {
   // Memoized teamMembers calculation based on role and project involvement
   const teamMembers = React.useMemo(() => {
     if (!currentUser || allUsers.length === 0) return [];
-    
+
     if (isAdmin) {
       return allUsers.filter(u => u.role !== "admin");
     }
-    
+
     if (isProjectManager) {
       const uId = currentUser?.uid || currentUser?.id;
       const teammateIds = managedProjects.flatMap(p => p.teamMembers || p.team_members || []);
       return allUsers.filter(u => (teammateIds.includes(u.uid) || teammateIds.includes(u.id)) && u.uid !== uId && u.id !== uId && u.role !== "admin");
     }
-    
+
     const me = allUsers.find(u => u.uid === currentUser.uid || u.id === currentUser.id);
     return me ? [me] : [currentUser];
   }, [allUsers, projects, currentUser, isAdmin, isProjectManager, managedProjects]);
@@ -130,9 +130,9 @@ export default function ProjectCalendar() {
     return projects.filter(proj => {
       if (!isAdmin) {
         const uId = currentUser?.uid || currentUser?.id;
-        const isInvolved = proj.managerId === uId || proj.manager_id === uId || 
-          (proj.teamMembers || []).includes(uId) || (proj.team_members || []).includes(uId) || 
-          (currentUser?.projects || []).includes(proj.name) || 
+        const isInvolved = proj.managerId === uId || proj.manager_id === uId ||
+          (proj.teamMembers || []).includes(uId) || (proj.team_members || []).includes(uId) ||
+          (currentUser?.projects || []).includes(proj.name) ||
           currentUser?.project === proj.name;
         if (!isInvolved) return false;
       }
@@ -171,14 +171,14 @@ export default function ProjectCalendar() {
     if (teamMembers.length > 0) {
       const allTaskIds = teamMembers.flatMap(m => (m.tasks || []).map(t => t.id));
       const unsubs = [];
-      
+
       allTaskIds.forEach(taskId => {
         const unsub = subscribeToTaskReports(taskId, (reports) => {
           setAllTaskReports(prev => ({ ...prev, [taskId]: reports }));
         });
         unsubs.push(unsub);
       });
-      
+
       return () => {
         unsubs.forEach(fn => fn());
       };
@@ -298,7 +298,7 @@ export default function ProjectCalendar() {
 
     const uProjects = m.projects?.length ? m.projects : (m.project ? [m.project] : []);
     const matchingProjects = isAdmin ? uProjects : uProjects.filter(p => pmProjects.includes(p));
-    
+
     if (filterProject !== "All" && !matchingProjects.includes(filterProject)) return;
     if (!isAdmin && matchingProjects.length === 0) return;
 
@@ -319,7 +319,7 @@ export default function ProjectCalendar() {
   // Build Calendar grid
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); // Day of week (0-6)
-  
+
   const monthDays = [];
   // Padding cells for previous month days
   for (let i = 0; i < firstDayIndex; i++) {
@@ -343,7 +343,7 @@ export default function ProjectCalendar() {
   const getDateActivity = (day) => {
     if (!day) return null;
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    
+
     const logs = filteredDailyReports.filter(r => r.date === dateStr);
     const tasksAssigned = activeTasksList.filter(t => t.assignedAt?.startsWith(dateStr));
     const taskReports = activeTasksList.flatMap(t => t.reports.filter(rep => rep.createdAt?.startsWith(dateStr) && !rep.reportText.startsWith("Worked for") && !rep.reportText.startsWith("Auto-stopped") && !rep.reportText.startsWith("Auto-paused")));
@@ -399,7 +399,7 @@ export default function ProjectCalendar() {
 
   return (
     <div className="animate-fade-in p-6 space-y-6">
-      
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-card pb-6">
         <div>
@@ -450,24 +450,24 @@ export default function ProjectCalendar() {
         <div className="flex justify-center p-12 text-text-mut font-bold">Loading team reports...</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
+
           {/* Left Column - Monthly Calendar Grid (Span 7) */}
           <div className="lg:col-span-7 bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-primary to-purple-500"></div>
-            
+
             {/* Calendar Controls */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-black text-text-main">
                 {monthNames[currentMonth]} {currentYear}
               </h2>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={prevMonth}
                   className="p-2 border border-border-card rounded-[10px] bg-bg-base hover:bg-border-card hover:text-brand-primary text-text-sec transition-all cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const today = new Date();
                     setCurrentMonth(today.getMonth());
@@ -478,7 +478,7 @@ export default function ProjectCalendar() {
                 >
                   Today
                 </button>
-                <button 
+                <button
                   onClick={nextMonth}
                   className="p-2 border border-border-card rounded-[10px] bg-bg-base hover:bg-border-card hover:text-brand-primary text-text-sec transition-all cursor-pointer"
                 >
@@ -515,15 +515,14 @@ export default function ProjectCalendar() {
                   <button
                     key={`day-${day}`}
                     onClick={() => setSelectedDate(activity?.dateStr)}
-                    className={`aspect-square rounded-[14px] p-2 flex flex-col justify-between items-center transition-all relative border outline-none cursor-pointer ${
-                      isSelected
-                        ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/20 scale-[1.03]"
-                        : isToday
+                    className={`aspect-square rounded-[14px] p-2 flex flex-col justify-between items-center transition-all relative border outline-none cursor-pointer ${isSelected
+                      ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/20 scale-[1.03]"
+                      : isToday
                         ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20"
                         : hasProjectHighlight
-                        ? "bg-brand-primary/5 border-brand-primary/20 text-text-main hover:bg-brand-primary/10"
-                        : "bg-bg-base/50 border-border-card text-text-main hover:bg-border-card hover:border-brand-primary/30"
-                    }`}
+                          ? "bg-brand-primary/5 border-brand-primary/20 text-text-main hover:bg-brand-primary/10"
+                          : "bg-bg-base/50 border-border-card text-text-main hover:bg-border-card hover:border-brand-primary/30"
+                      }`}
                   >
                     {/* Day Number and Project Tag */}
                     <div className="w-full flex justify-between items-start">
@@ -559,7 +558,7 @@ export default function ProjectCalendar() {
 
           {/* Right Column - Work Details Side Panel (Span 5) */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* Selected Date Header Card */}
             <div className="bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl relative overflow-hidden">
               <h3 className="font-extrabold text-sm text-text-mut uppercase tracking-wider mb-1">Activity details</h3>
@@ -592,8 +591,8 @@ export default function ProjectCalendar() {
                     const isCompleted = pStatus.toLowerCase() === "completed";
 
                     return (
-                      <div 
-                        key={proj.id} 
+                      <div
+                        key={proj.id}
                         onClick={() => {
                           setSelectedProjectForDetails(proj);
                           setShowProjectDetailsModal(true);
@@ -604,10 +603,9 @@ export default function ProjectCalendar() {
                           <h5 className="text-xs font-black text-text-main group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                             {proj.name}
                           </h5>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                            isCompleted ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isCompleted ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
                             "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
-                          }`}>
+                            }`}>
                             {pStatus}
                           </span>
                         </div>
@@ -629,11 +627,10 @@ export default function ProjectCalendar() {
                             <span>{proj.progress ?? 0}% completed</span>
                           </div>
                           <div className="w-full h-1.5 bg-bg-base rounded-full overflow-hidden border border-border-card/30">
-                            <div 
-                              className={`h-full rounded-full transition-all ${
-                                (proj.progress ?? 0) === 100 ? "bg-emerald-500" :
+                            <div
+                              className={`h-full rounded-full transition-all ${(proj.progress ?? 0) === 100 ? "bg-emerald-500" :
                                 (proj.progress ?? 0) > 0 ? "bg-brand-primary" : "bg-transparent"
-                              }`}
+                                }`}
                               style={{ width: `${proj.progress ?? 0}%` }}
                             />
                           </div>
@@ -647,73 +644,72 @@ export default function ProjectCalendar() {
 
             {/* Daily logs section — visible to Admin & Project Managers only */}
             {(isAdmin || isProjectManager) && (
-            <div className="bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl space-y-4">
-              <h4 className="font-extrabold text-base text-text-main flex items-center gap-2 border-b border-border-card pb-3">
-                <FileText size={18} className="text-brand-primary" />
-                Work logs ({selectedActivity.logs.length})
-              </h4>
+              <div className="bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl space-y-4">
+                <h4 className="font-extrabold text-base text-text-main flex items-center gap-2 border-b border-border-card pb-3">
+                  <FileText size={18} className="text-brand-primary" />
+                  Work logs ({selectedActivity.logs.length})
+                </h4>
 
-              {selectedActivity.logs.length === 0 ? (
-                <div className="p-8 text-center text-text-mut border border-dashed border-border-card rounded-[16px] bg-bg-base/20">
-                  <AlertCircle size={32} className="mx-auto mb-3 text-text-mut/50" />
-                  <p className="text-xs font-bold">No daily work logs submitted for this date.</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                  {selectedActivity.logs.map((log) => (
-                    <div key={log.id} className="p-4 bg-bg-base/40 border border-border-card rounded-[16px] space-y-3 relative group">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-brand-primary/15 text-brand-primary font-black flex items-center justify-center text-xs overflow-hidden">{(allUsers.find(u => u.uid === log.userId)?.avatar) ? <img src={allUsers.find(u => u.uid === log.userId).avatar} alt={log.userName} className="w-full h-full object-cover" /> : (log.userName ? log.userName.charAt(0).toUpperCase() : <User size={14} />)}</div>
+                {selectedActivity.logs.length === 0 ? (
+                  <div className="p-8 text-center text-text-mut border border-dashed border-border-card rounded-[16px] bg-bg-base/20">
+                    <AlertCircle size={32} className="mx-auto mb-3 text-text-mut/50" />
+                    <p className="text-xs font-bold">No daily work logs submitted for this date.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                    {selectedActivity.logs.map((log) => (
+                      <div key={log.id} className="p-4 bg-bg-base/40 border border-border-card rounded-[16px] space-y-3 relative group">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-brand-primary/15 text-brand-primary font-black flex items-center justify-center text-xs overflow-hidden">{(allUsers.find(u => u.uid === log.userId)?.avatar) ? <img src={allUsers.find(u => u.uid === log.userId).avatar} alt={log.userName} className="w-full h-full object-cover" /> : (log.userName ? log.userName.charAt(0).toUpperCase() : <User size={14} />)}</div>
+                            <div>
+                              <h5 className="text-xs font-black text-text-main">{log.userName}</h5>
+                              <span className="text-[10px] text-text-mut font-bold">{log.projectName}</span>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${log.status === "Completed" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            }`}>
+                            {log.status}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 border-t border-border-card/50 pt-2.5">
                           <div>
-                            <h5 className="text-xs font-black text-text-main">{log.userName}</h5>
-                            <span className="text-[10px] text-text-mut font-bold">{log.projectName}</span>
+                            <span className="text-[9px] font-black text-text-mut uppercase block">Tasks Completed</span>
+                            <p className="text-xs text-text-sec leading-normal mt-0.5 whitespace-pre-wrap">{log.tasksCompleted}</p>
                           </div>
+
+                          {log.issuesFaced && (
+                            <div>
+                              <span className="text-[9px] font-black text-red-500 uppercase block">Issues Faced</span>
+                              <p className="text-xs text-red-500/80 leading-normal mt-0.5 whitespace-pre-wrap">{log.issuesFaced}</p>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center text-[10px] text-text-mut font-bold bg-bg-base/30 p-2 rounded-[8px] border border-border-card/30">
+                            <span className="flex items-center gap-1"><Clock size={12} /> Logged: {log.hours}h</span>
+                          </div>
+
+                          {log.supervisorRemarks && (
+                            <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-[10px] p-3 text-left">
+                              <span className="text-[9px] font-black text-brand-primary uppercase block">PM Remarks</span>
+                              <p className="text-xs text-text-sec mt-1 italic">"{log.supervisorRemarks}"</p>
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() => handleOpenRemarks(log)}
+                            className="w-full py-2 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white text-[10px] font-bold rounded-[10px] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                          >
+                            <MessageSquare size={12} />
+                            {log.supervisorRemarks ? "Edit Remarks" : "Add Supervisor Remarks"}
+                          </button>
                         </div>
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                          log.status === "Completed" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                        }`}>
-                          {log.status}
-                        </span>
                       </div>
-
-                      <div className="space-y-2 border-t border-border-card/50 pt-2.5">
-                        <div>
-                          <span className="text-[9px] font-black text-text-mut uppercase block">Tasks Completed</span>
-                          <p className="text-xs text-text-sec leading-normal mt-0.5 whitespace-pre-wrap">{log.tasksCompleted}</p>
-                        </div>
-
-                        {log.issuesFaced && (
-                          <div>
-                            <span className="text-[9px] font-black text-red-500 uppercase block">Issues Faced</span>
-                            <p className="text-xs text-red-500/80 leading-normal mt-0.5 whitespace-pre-wrap">{log.issuesFaced}</p>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center text-[10px] text-text-mut font-bold bg-bg-base/30 p-2 rounded-[8px] border border-border-card/30">
-                          <span className="flex items-center gap-1"><Clock size={12} /> Logged: {log.hours}h</span>
-                        </div>
-
-                        {log.supervisorRemarks && (
-                          <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-[10px] p-3 text-left">
-                            <span className="text-[9px] font-black text-brand-primary uppercase block">PM Remarks</span>
-                            <p className="text-xs text-text-sec mt-1 italic">"{log.supervisorRemarks}"</p>
-                          </div>
-                        )}
-
-                        <button 
-                          onClick={() => handleOpenRemarks(log)}
-                          className="w-full py-2 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white text-[10px] font-bold rounded-[10px] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2"
-                        >
-                          <MessageSquare size={12} />
-                          {log.supervisorRemarks ? "Edit Remarks" : "Add Supervisor Remarks"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Tasks and Task Reports Section */}
@@ -730,7 +726,7 @@ export default function ProjectCalendar() {
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                  
+
                   {/* Tasks Assigned */}
                   {selectedActivity.tasks.map((task) => (
                     <div key={task.id} className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-[16px] space-y-2">
@@ -756,7 +752,7 @@ export default function ProjectCalendar() {
                             <h5 className="text-xs font-black text-text-main">{task?.title || "Unknown Task"}</h5>
                             <span className="text-[10px] text-text-mut font-bold">Logged by: {teamMembers.find(m => m.uid === rep.employeeId)?.name}</span>
                           </div>
-                          <span className="text-[9px] text-text-mut font-bold">{new Date(rep.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                          <span className="text-[9px] text-text-mut font-bold">{new Date(rep.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <p className="text-xs text-text-sec italic bg-bg-base/30 p-2.5 rounded-[10px] border border-border-card/30 mt-1">
                           "{rep.reportText}"
@@ -777,7 +773,7 @@ export default function ProjectCalendar() {
       {/* Project Manager Team setup panel & Team progress table */}
       {(isAdmin || isProjectManager) && (
         <div className="mt-8 space-y-6 text-left">
-          
+
           {/* Action buttons bar */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-primary to-purple-500"></div>
@@ -786,7 +782,7 @@ export default function ProjectCalendar() {
               <p className="text-xs text-text-mut font-semibold mt-1">Manage project teammates and delegate tasks for your active projects.</p>
             </div>
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => {
                   if (managedProjects.length > 0) {
                     setSelectedProjectId(managedProjects[0].id);
@@ -798,7 +794,7 @@ export default function ProjectCalendar() {
                 <UserPlus size={16} />
                 <span>Add Teammates</span>
               </button>
-              <button 
+              <button
                 onClick={() => {
                   if (managedProjects.length > 0) {
                     setSelectedProjectId(managedProjects[0].id);
@@ -845,10 +841,10 @@ export default function ProjectCalendar() {
                   ) : (
                     teamMembers.map((member) => {
                       const memberProjects = managedProjects.filter(p => p.teamMembers?.includes(member.uid) || (member.projects || []).includes(p.name));
-                      
+
                       return memberProjects.map((proj) => {
                         const projTasks = (member.tasks || []).filter(t => t.project === proj.name);
-                        
+
                         const taskHoursSum = projTasks.reduce((sum, t) => {
                           const tReps = allTaskReports[t.id] || [];
                           let totalMinutes = 0;
@@ -866,7 +862,7 @@ export default function ProjectCalendar() {
                           const tReps = allTaskReports[t.id] || [];
                           const manualReps = tReps.filter(r => !r.reportText.startsWith("Worked for") && !r.reportText.startsWith("Auto-stopped") && !r.reportText.startsWith("Auto-paused"));
                           if (manualReps.length > 0) {
-                            const sorted = [...manualReps].sort((a,b) => new Date(b.timestamp || b.createdAt || b.submittedAt) - new Date(a.timestamp || a.createdAt || a.submittedAt));
+                            const sorted = [...manualReps].sort((a, b) => new Date(b.timestamp || b.createdAt || b.submittedAt) - new Date(a.timestamp || a.createdAt || a.submittedAt));
                             const candDate = sorted[0].timestamp || sorted[0].createdAt || sorted[0].submittedAt;
                             const prevDate = latestReport ? (latestReport.timestamp || latestReport.createdAt || latestReport.submittedAt) : null;
                             if (!latestReport || new Date(candDate) > new Date(prevDate)) {
@@ -900,9 +896,8 @@ export default function ProjectCalendar() {
                             </td>
                             <td className="p-4 text-center">
                               {projTasks.length > 0 ? (
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                                  projTasks.every(t => t.completed) ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand-primary/10 text-brand-primary'
-                                }`}>
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${projTasks.every(t => t.completed) ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand-primary/10 text-brand-primary'
+                                  }`}>
                                   {projTasks.every(t => t.completed) ? 'All Done' : 'In Progress'}
                                 </span>
                               ) : (
@@ -919,7 +914,7 @@ export default function ProjectCalendar() {
                                   {(() => {
                                     const d = latestReport.timestamp || latestReport.createdAt || latestReport.submittedAt;
                                     return d ? (
-                                      <span className="text-[8px] text-text-mut mt-0.5 block">{new Date(d).toLocaleDateString()} at {new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                      <span className="text-[8px] text-text-mut mt-0.5 block">{new Date(d).toLocaleDateString()} at {new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     ) : null;
                                   })()}
                                 </div>
@@ -1055,11 +1050,10 @@ export default function ProjectCalendar() {
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     <ClipboardList size={11} className="text-text-mut" />
                                     <span className="text-[11px] font-bold text-text-sec">{task.title}</span>
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1 ${
-                                      task.completed
-                                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                        : "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
-                                    }`}>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1 ${task.completed
+                                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                      : "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
+                                      }`}>
                                       {task.completed ? "Completed" : "In Progress"}
                                     </span>
                                   </div>
@@ -1077,7 +1071,7 @@ export default function ProjectCalendar() {
                                   {/* Timeline dot */}
                                   <div className="flex flex-col items-center shrink-0 mt-1.5">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500/60 group-hover:bg-emerald-500 transition-colors"></div>
-                                    {li < logs.length - 1 && <div className="w-px flex-1 bg-border-card mt-1" style={{minHeight: '16px'}}></div>}
+                                    {li < logs.length - 1 && <div className="w-px flex-1 bg-border-card mt-1" style={{ minHeight: '16px' }}></div>}
                                   </div>
                                   {/* Log content */}
                                   <div className="flex-1 bg-bg-base/40 border border-border-card/50 rounded-[10px] px-3 py-2.5 group-hover:border-emerald-500/20 transition-colors">
@@ -1114,11 +1108,11 @@ export default function ProjectCalendar() {
               </h3>
               <button onClick={() => setShowAddTeamModal(false)} className="text-text-mut hover:text-text-main font-bold cursor-pointer"><X size={18} /></button>
             </div>
-            
+
             <form onSubmit={handleAddTeammate} className="space-y-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Select Managed Project</label>
-                <select 
+                <select
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all cursor-pointer font-bold"
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -1132,7 +1126,7 @@ export default function ProjectCalendar() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Select Employee</label>
-                <select 
+                <select
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all cursor-pointer font-bold"
                   value={selectedTeammateId}
                   onChange={(e) => setSelectedTeammateId(e.target.value)}
@@ -1168,11 +1162,11 @@ export default function ProjectCalendar() {
               </h3>
               <button onClick={() => setShowAssignTaskModal(false)} className="text-text-mut hover:text-text-main font-bold cursor-pointer"><X size={18} /></button>
             </div>
-            
+
             <form onSubmit={handleAssignTask} className="space-y-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Select Project</label>
-                <select 
+                <select
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all cursor-pointer font-bold"
                   value={selectedProjectId}
                   onChange={(e) => {
@@ -1189,7 +1183,7 @@ export default function ProjectCalendar() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Select Project Teammate</label>
-                <select 
+                <select
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all cursor-pointer font-bold"
                   value={selectedTeammateId}
                   onChange={(e) => setSelectedTeammateId(e.target.value)}
@@ -1197,15 +1191,15 @@ export default function ProjectCalendar() {
                 >
                   <option value="">-- Choose teammate --</option>
                   {allUsers.filter(u => projects.find(p => p.id === selectedProjectId)?.teamMembers?.includes(u.uid) && u.uid !== currentUser.uid).map(u => (
-                    <option key={u.uid} value={u.uid}>{u.name}</option>
+                    <option key={u.uid} value={u.uid}>{u.name} ({u.designation || u.department || 'Employee'})</option>
                   ))}
                 </select>
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Task Title</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="E.g., Design the layout database migrations..."
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all font-semibold"
                   value={newTaskTitle}
@@ -1216,8 +1210,8 @@ export default function ProjectCalendar() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-text-sec">Estimated Duration (Hours)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.5"
                   min="0.5"
                   className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all font-semibold"
@@ -1243,7 +1237,7 @@ export default function ProjectCalendar() {
       {showRemarksModal && selectedReportForRemarks && createPortal(
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4 animate-fade-in">
           <div className="bg-bg-card border border-border-card rounded-[24px] p-6 w-full max-w-md shadow-2xl relative animate-scale-up">
-            <button 
+            <button
               onClick={() => { setShowRemarksModal(false); setSelectedReportForRemarks(null); }}
               className="absolute top-4 right-4 text-text-mut hover:text-text-main transition-colors bg-bg-base hover:bg-border-card p-1.5 rounded-full"
             >
@@ -1304,7 +1298,7 @@ export default function ProjectCalendar() {
       {showProjectDetailsModal && selectedProjectForDetails && createPortal(
         <div className="fixed inset-0 bg-slate-950/50 dark:bg-black/75 backdrop-blur-[12px] flex items-center justify-center z-[99999] p-4 sm:p-6 animate-fade-in">
           <div className="w-full max-w-xl bg-bg-card border border-border-card rounded-[24px] shadow-2xl animate-scale-up flex flex-col overflow-hidden relative max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border-card bg-bg-base/40">
               <div className="flex items-center gap-3">
@@ -1316,18 +1310,17 @@ export default function ProjectCalendar() {
                     <h3 className="font-extrabold text-base text-text-main tracking-tight">
                       {selectedProjectForDetails.name}
                     </h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      (selectedProjectForDetails.status || "Ongoing").toLowerCase() === "completed" 
-                        ? "bg-green-500/10 text-green-500 border border-green-500/20" 
-                        : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(selectedProjectForDetails.status || "Ongoing").toLowerCase() === "completed"
+                      ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                      : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                      }`}>
                       {selectedProjectForDetails.status || "Ongoing"}
                     </span>
                   </div>
                   <p className="text-xs text-text-mut mt-0.5">PostgreSQL Database-Driven Project Record</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setShowProjectDetailsModal(false)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-text-mut hover:text-text-main hover:bg-bg-base transition-colors cursor-pointer"
               >
@@ -1337,7 +1330,7 @@ export default function ProjectCalendar() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar text-left">
-              
+
               {/* Quick Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3.5 bg-bg-base/40 border border-border-card/60 rounded-[14px] space-y-1">
@@ -1345,7 +1338,7 @@ export default function ProjectCalendar() {
                     <Clock size={12} className="text-brand-primary" /> Timeline
                   </span>
                   <div className="text-xs font-bold text-text-main">
-                    {selectedProjectForDetails.startDate || selectedProjectForDetails.start_date || "-"} 
+                    {selectedProjectForDetails.startDate || selectedProjectForDetails.start_date || "-"}
                     <span className="text-text-mut font-normal mx-1.5">to</span>
                     {selectedProjectForDetails.endDate || selectedProjectForDetails.end_date || "-"}
                   </div>
@@ -1381,11 +1374,10 @@ export default function ProjectCalendar() {
                   </span>
                 </div>
                 <div className="w-full h-2 bg-bg-card rounded-full overflow-hidden border border-border-card/50">
-                  <div 
-                    className={`h-full rounded-full transition-all ${
-                      (selectedProjectForDetails.progress ?? 0) === 100 ? "bg-emerald-500" :
+                  <div
+                    className={`h-full rounded-full transition-all ${(selectedProjectForDetails.progress ?? 0) === 100 ? "bg-emerald-500" :
                       (selectedProjectForDetails.progress ?? 0) > 0 ? "bg-brand-primary" : "bg-transparent"
-                    }`}
+                      }`}
                     style={{ width: `${selectedProjectForDetails.progress ?? 0}%` }}
                   />
                 </div>

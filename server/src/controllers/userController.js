@@ -33,11 +33,13 @@ export const getUsers = async (req, res) => {
       const { metadata = {}, ...rest } = row;
       const meta = metadata && typeof metadata === "object" ? metadata : {};
       const empId = row.employee_id || meta.employeeId || meta.employee_id || "";
+      const resolvedDesignation = row.designation || meta.designation || (row.department ? `${row.department} Associate` : "Employee");
       return {
         ...rest,
         ...meta,
         uid: row.id,
         id: row.id,
+        designation: resolvedDesignation,
         employeeId: empId,
         employee_id: empId,
         companyId: row.company_id,
@@ -118,11 +120,13 @@ export const getUserById = async (req, res) => {
       }
     }
 
+    const resolvedDesignation = u.designation || meta.designation || (u.department ? `${u.department} Associate` : "Employee");
     res.json({
       ...u,
       ...meta,
       uid: u.id,
       id: u.id,
+      designation: resolvedDesignation,
       employeeId: empId,
       employee_id: empId,
       companyId: u.company_id,
@@ -283,11 +287,13 @@ export const updateUser = async (req, res) => {
 
     const { password_hash, metadata = {}, ...updatedUser } = result.rows[0];
     const meta = metadata && typeof metadata === "object" ? metadata : {};
+    const resolvedDesignation = updatedUser.designation || meta.designation || (updatedUser.department ? `${updatedUser.department} Associate` : "Employee");
     res.json({
       ...updatedUser,
       ...meta,
       uid: updatedUser.id,
       id: updatedUser.id,
+      designation: resolvedDesignation,
       companyId: updatedUser.company_id,
       company_id: updatedUser.company_id,
       projects: Array.isArray(updatedUser.projects) ? updatedUser.projects : (meta.projects || []),

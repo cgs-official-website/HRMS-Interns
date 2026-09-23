@@ -1452,15 +1452,16 @@ export default function ProjectManagement() {
   };
 
   const uniqueProjects = Array.from(new Set(teamMembers.flatMap(m => m.projects?.length ? m.projects : (m.project ? [m.project] : [])))).filter(Boolean);
-  const uniqueDesignations = Array.from(new Set(teamMembers.map(m => m.designation || m.jobType || "Unassigned"))).filter(Boolean).sort();
+  const uniqueDesignations = Array.from(new Set(teamMembers.map(m => m.designation || m.department || m.jobType || "Employee"))).filter(Boolean).sort();
 
   const filteredTeam = teamMembers.filter(m => {
+    const desigText = m.designation || m.department || m.jobType || "Employee";
     const matchesSearch = m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (m.designation || m.jobType || "Unassigned").toLowerCase().includes(searchQuery.toLowerCase());
+                          m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          desigText.toLowerCase().includes(searchQuery.toLowerCase());
     const mProjects = m.projects?.length ? m.projects : (m.project ? [m.project] : []);
     const matchesProject = filterProject === "All" || mProjects.includes(filterProject);
-    const mDesignation = m.designation || m.jobType || "Unassigned";
-    const matchesDesignation = filterDesignation === "All" || mDesignation === filterDesignation;
+    const matchesDesignation = filterDesignation === "All" || desigText === filterDesignation;
     return matchesSearch && matchesProject && matchesDesignation;
   });
 
@@ -2066,8 +2067,11 @@ export default function ProjectManagement() {
                           )}
                         </td>
                       )}
-                      <td className="p-4 text-xs font-medium text-text-sec">
-                        {member.designation || member.jobType || "Unassigned"}
+                      <td className="p-4 text-xs font-medium text-text-main">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-brand-primary/10 text-brand-primary font-bold text-[11px] border border-brand-primary/20">
+                          <Briefcase size={12} className="text-brand-primary" />
+                          {member.designation || member.department || member.jobType || "Employee"}
+                        </span>
                       </td>
                       <td className="p-4 text-center">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-bold">
@@ -2676,18 +2680,48 @@ export default function ProjectManagement() {
         <div className="fixed inset-0 bg-slate-950/45 dark:bg-black/65 backdrop-blur-[12px] flex items-center justify-center z-[99999] p-6 animate-fade-in">
           <div className="w-full max-w-[600px] bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl animate-scale-up relative overflow-hidden flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between mb-4 border-b border-border-card pb-4 flex-shrink-0">
-              <h3 className="font-bold text-lg text-text-main">
-                Tasks for <span className="text-brand-primary">{taskTargetUser.name}</span>
-              </h3>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="font-bold text-lg text-text-main">
+                    Tasks for <span className="text-brand-primary">{taskTargetUser.name}</span>
+                  </h3>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                    <Briefcase size={12} className="text-brand-primary" />
+                    {taskTargetUser.designation || taskTargetUser.department || taskTargetUser.jobType || "Employee"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-xs text-text-mut flex-wrap">
+                  <span>{taskTargetUser.email}</span>
+                  {taskTargetUser.employeeId && <span>• ID: <strong className="text-text-main font-semibold">{taskTargetUser.employeeId}</strong></span>}
+                  {taskTargetUser.department && <span>• Dept: <strong className="text-text-main font-semibold">{taskTargetUser.department}</strong></span>}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openEditMemberModal(taskTargetUser);
+                    }}
+                    className="text-[11px] text-brand-primary hover:underline font-bold inline-flex items-center gap-1 ml-1 cursor-pointer"
+                    title="Change designation"
+                  >
+                    <Edit2 size={11} /> Edit Designation
+                  </button>
+                </div>
+              </div>
               <button onClick={() => setShowTaskModal(false)} className="text-text-mut hover:text-text-main font-bold cursor-pointer"><X size={18} /></button>
             </div>
             
             <div className="overflow-y-auto pr-2 custom-scrollbar flex-grow space-y-6">
               
               <div className="bg-bg-base/50 p-4 rounded-[16px] border border-border-card">
-                <h4 className="text-xs font-extrabold text-text-main uppercase tracking-wider mb-3">
-                  {editingTaskIndex !== null ? "Edit Task" : "Assign New Task"}
-                </h4>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <h4 className="text-xs font-extrabold text-text-main uppercase tracking-wider">
+                    {editingTaskIndex !== null ? "Edit Task" : "Assign New Task"}
+                  </h4>
+                  <div className="text-[11px] text-text-sec flex items-center gap-1">
+                    <span>Assignee:</span>
+                    <strong className="text-text-main font-semibold">{taskTargetUser.name}</strong>
+                    <span className="text-brand-primary font-bold">({taskTargetUser.designation || taskTargetUser.department || "Employee"})</span>
+                  </div>
+                </div>
                 <form onSubmit={handleSaveTask} className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="md:col-span-3 flex flex-col gap-1">

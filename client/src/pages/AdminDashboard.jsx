@@ -2429,27 +2429,34 @@ export default function AdminDashboard() {
                             if (log) {
                               if (log.breaks) {
                                 log.breaks.forEach(b => {
-                                  const bStart = new Date(b.startTime).getTime();
-                                  const bEnd = b.resumeTime ? new Date(b.resumeTime).getTime() : new Date().getTime();
-                                  const mins = Math.round((bEnd - bStart) / 60000);
-                                  if (b.type === "short") shortTaken += mins;
-                                  else if (b.type === "long") longTaken += mins;
-                                  else if (b.type === "bio") bioTaken += mins;
+                                  const bStartVal = b.start || b.startTime;
+                                  const bEndVal = b.end || b.resumeTime;
+                                  if (bStartVal) {
+                                    const bStart = new Date(bStartVal).getTime();
+                                    const bEnd = bEndVal ? new Date(bEndVal).getTime() : new Date().getTime();
+                                    const mins = Math.max(0, Math.round((bEnd - bStart) / 60000));
+                                    if (b.type === "short") shortTaken += mins;
+                                    else if (b.type === "long") longTaken += mins;
+                                    else if (b.type === "bio") bioTaken += mins;
+                                  }
                                 });
                               }
                               
-                              if (log.totalWorkingMinutes !== undefined) {
-                                totalHrsStr = (log.totalWorkingMinutes / 60).toFixed(2) + "h";
+                              if (log.totalWorkingMinutes !== undefined && log.totalWorkingMinutes !== null) {
+                                totalHrsStr = (Number(log.totalWorkingMinutes) / 60).toFixed(2) + "h";
                               } else if (log.checkInTime) {
                                 const start = new Date(log.checkInTime).getTime();
                                 const now = new Date().getTime();
                                 const end = log.checkOutTime ? new Date(log.checkOutTime).getTime() : now;
                                 
-                                const breakMinutes = log.breaks?.reduce((acc, b) => {
-                                  const bStart = new Date(b.startTime).getTime();
-                                  const bEnd = b.resumeTime ? new Date(b.resumeTime).getTime() : new Date().getTime();
-                                  return acc + ((bEnd - bStart) / 60000);
-                                }, 0) || 0;
+                                const breakMinutes = (log.breaks || []).reduce((acc, b) => {
+                                  const bStartVal = b.start || b.startTime;
+                                  const bEndVal = b.end || b.resumeTime;
+                                  if (!bStartVal) return acc;
+                                  const bStart = new Date(bStartVal).getTime();
+                                  const bEnd = bEndVal ? new Date(bEndVal).getTime() : new Date().getTime();
+                                  return acc + Math.max(0, (bEnd - bStart) / 60000);
+                                }, 0);
                                 
                                 const elapsedMins = Math.max(0, ((end - start) / 60000) - breakMinutes);
                                 totalHrsStr = (elapsedMins / 60).toFixed(2) + "h";

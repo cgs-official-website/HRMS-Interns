@@ -157,7 +157,7 @@ export const register = async (req, res) => {
         email.toLowerCase().trim(),
         passwordHash,
         department || null,
-        designation || null,
+        (designation && designation.trim() !== "") ? designation.trim() : (department ? `${department} Associate` : "Employee"),
         programType || "Full-time",
         shiftStart || "09:00",
         shiftEnd || "18:00",

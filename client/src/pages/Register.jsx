@@ -13,6 +13,7 @@ export default function Register() {
   const [selectedProgram, setSelectedProgram] = useState("Full-Time");
   const [customProgram, setCustomProgram] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [designation, setDesignation] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -79,7 +80,7 @@ export default function Register() {
       }
 
       // Always register as employee when joining via org link
-      await signup(name, finalDept, finalProgram, email, password, shiftStart, shiftEnd, employeeId, companySlug, "employee");
+      await signup(name, finalDept, finalProgram, email, password, shiftStart, shiftEnd, employeeId, companySlug, "employee", designation);
       showToast("Account registered successfully! Welcome to the portal.", "success");
       navigate("/dashboard");
     } catch (error) {
@@ -222,6 +223,26 @@ export default function Register() {
                   placeholder="e.g., EMP-001"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            {/* Designation / Role */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-text-sec" htmlFor="designation-input">Designation / Role (Optional)</label>
+              <div className="relative">
+                <Briefcase
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-mut pointer-events-none"
+                />
+                <input
+                  id="designation-input"
+                  type="text"
+                  className="w-full pl-10 pr-4 py-2.5 border border-border-card rounded-[12px] bg-bg-base/20 text-sm text-text-main placeholder-text-mut focus:bg-bg-card focus:border-brand-primary outline-none transition-all"
+                  placeholder="e.g., Software Intern, Full Stack Developer"
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
                   disabled={loading}
                 />
               </div>

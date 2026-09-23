@@ -367,8 +367,25 @@ export const checkOut = async (userId, location = {}) => {
   });
 };
 
-export const startBreak = async (userId, location = {}) => checkOut(userId, location);
-export const resumeWork = async (userId, location = {}) => checkIn(userId, location);
+export const startBreak = async (userId, breakType = "short", location = {}) => {
+  const uid = typeof userId === "object" && userId !== null ? (userId.uid || userId.id) : userId;
+  const companyId = typeof userId === "object" && userId !== null ? userId.companyId : undefined;
+  const date = getLocalDateString();
+  return apiFetch("/attendance/break/start", {
+    method: "POST",
+    body: JSON.stringify({ userId: uid, companyId, date, breakType, location })
+  });
+};
+
+export const resumeWork = async (userId, location = {}) => {
+  const uid = typeof userId === "object" && userId !== null ? (userId.uid || userId.id) : userId;
+  const companyId = typeof userId === "object" && userId !== null ? userId.companyId : undefined;
+  const date = getLocalDateString();
+  return apiFetch("/attendance/break/end", {
+    method: "POST",
+    body: JSON.stringify({ userId: uid, companyId, date, location })
+  });
+};
 
 export const getTodayAttendanceLog = async (userId) => {
   const today = getLocalDateString();

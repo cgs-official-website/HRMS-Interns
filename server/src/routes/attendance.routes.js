@@ -3,6 +3,8 @@ import {
   getAttendance,
   checkIn,
   checkOut,
+  startBreak,
+  endBreak,
   updateAttendance,
   deleteAttendance,
   getAttendanceRules,
@@ -19,6 +21,8 @@ router.use(authenticateToken);
 router.get("/", getAttendance);
 router.post("/check-in", checkIn);
 router.post("/check-out", checkOut);
+router.post("/break/start", startBreak);
+router.post("/break/end", endBreak);
 router.patch("/:id", updateAttendance);
 router.delete("/:id", deleteAttendance);
 router.post("/rules", updateAttendanceRules);

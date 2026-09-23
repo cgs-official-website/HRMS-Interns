@@ -47,6 +47,7 @@ import RaiseTicketModal from "./RaiseTicketModal";
 import {
   checkIn,
   checkOut,
+  resumeWork,
   getTodayAttendanceLog,
   subscribeToLeaveRequests,
   subscribeToAttendanceRules,
@@ -599,6 +600,22 @@ export default function DashboardLayout({ children }) {
       window.location.reload();
     } catch (err) {
       showToast(err.message || "Quick check-out failed", "error");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleQuickResumeWork = async () => {
+    setLoadingAction(true);
+    try {
+      showToast("Fetching location...", "info", 1500);
+      const loc = await getGpsLocation();
+      await resumeWork(currentUser.uid, loc);
+      showToast("Shift resumed! Status updated to Working.", "success");
+      setShowQuickCheckModal(false);
+      window.location.reload();
+    } catch (err) {
+      showToast(err.message || "Failed to resume shift", "error");
     } finally {
       setLoadingAction(false);
     }
@@ -1800,10 +1817,15 @@ export default function DashboardLayout({ children }) {
                 </button>
               )}
 
-              {todayLog && todayLog.status === "on-break" && (
-                <p className="text-xs text-brand-warning font-bold">
-                  <AlertTriangle size={16} className='inline-block mr-1 text-amber-500' /> Please resume work on the main Dashboard page to end your break.
-                </p>
+              {todayLog && (todayLog.status === "on-break" || (Array.isArray(todayLog.breaks) && todayLog.breaks.some(b => b.start && !b.end))) && (
+                <button
+                  onClick={handleQuickResumeWork}
+                  disabled={loadingAction}
+                  className="w-full py-3 px-4 bg-emerald-600 text-white font-bold rounded-[12px] flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-md shadow-emerald-600/10 transition-all cursor-pointer"
+                >
+                  <Play size={16} fill="#fff" />
+                  <span>{loadingAction ? "Processing..." : "Resume Shift"}</span>
+                </button>
               )}
 
               {todayLog && todayLog.status === "checked-out" && (
