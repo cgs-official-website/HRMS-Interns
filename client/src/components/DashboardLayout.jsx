@@ -4,7 +4,8 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router-do
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { Mailbox, AlertTriangle, Check, ShieldAlert,
+import {
+  Mailbox, AlertTriangle, Check, ShieldAlert,
   LayoutGrid,
   Shield,
   Users,
@@ -43,9 +44,9 @@ import { Mailbox, AlertTriangle, Check, ShieldAlert,
 import Logo from "./Logo";
 import logoImg from "../assets/zuna-logo.png";
 import RaiseTicketModal from "./RaiseTicketModal";
-import { 
-  checkIn, 
-  checkOut, 
+import {
+  checkIn,
+  checkOut,
   getTodayAttendanceLog,
   subscribeToLeaveRequests,
   subscribeToAttendanceRules,
@@ -83,37 +84,37 @@ const DashboardSkeleton = () => (
       }
     `}</style>
     <div className="relative flex items-center justify-center w-40 h-40" style={{ transformStyle: 'preserve-3d' }}>
-      
+
       {/* Outer Glow Ring - rotates flat like a radar */}
-      <div 
+      <div
         className="absolute inset-0 rounded-full border border-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.2)_inset]"
         style={{ animation: 'gimbal-1 6s linear infinite' }}
       >
         <div className="absolute top-0 left-1/2 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_10px_#a855f7] -translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 left-1/2 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_10px_#a855f7] -translate-x-1/2 translate-y-1/2"></div>
       </div>
-      
+
       {/* Middle Flipping Ring */}
-      <div 
+      <div
         className="absolute inset-4 rounded-full border-2 border-purple-400/50 border-t-purple-600 shadow-[0_0_15px_rgba(192,132,252,0.4)]"
         style={{ animation: 'gimbal-2 3s cubic-bezier(0.4, 0, 0.2, 1) infinite', transformStyle: 'preserve-3d' }}
       ></div>
 
       {/* Inner Flipping Ring */}
-      <div 
+      <div
         className="absolute inset-8 rounded-full border-2 border-purple-300/40 border-b-purple-500 shadow-[0_0_15px_rgba(216,180,254,0.4)]"
         style={{ animation: 'gimbal-3 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite', transformStyle: 'preserve-3d' }}
       ></div>
-      
+
       {/* Center Logo */}
-      <img 
-        src={logoImg} 
-        alt="Loading..." 
-        className="w-14 h-auto relative z-10" 
+      <img
+        src={logoImg}
+        alt="Loading..."
+        className="w-14 h-auto relative z-10"
         style={{ animation: 'logo-float 2s ease-in-out infinite' }}
       />
     </div>
-    
+
     <div className="mt-12 flex flex-col items-center gap-2">
       <h3 className="text-text-main font-extrabold text-sm tracking-widest uppercase text-purple-600 dark:text-purple-400 drop-shadow-sm">Loading Workspace</h3>
       <div className="flex gap-1.5 mt-1">
@@ -137,7 +138,7 @@ export default function DashboardLayout({ children }) {
   const [showQuickCheckModal, setShowQuickCheckModal] = useState(false);
   const [todayLog, setTodayLog] = useState(null);
   const [loadingAction, setLoadingAction] = useState(false);
-  
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -187,7 +188,7 @@ export default function DashboardLayout({ children }) {
   const [dmThreads, setDmThreads] = useState([]);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribe = () => { };
 
     const updateFavicon = (url) => {
       let link = document.querySelector("link[rel~='icon']");
@@ -224,7 +225,7 @@ export default function DashboardLayout({ children }) {
       updateFavicon("/favicon.png");
       setCompanyStatus(userIsSuperAdmin ? "active" : "no_workspace");
     }
-    
+
     return () => {
       document.title = "Zuna | HRMS";
       let link = document.querySelector("link[rel~='icon']");
@@ -300,7 +301,7 @@ export default function DashboardLayout({ children }) {
       }
     });
 
-    let unsubscribeRegs = () => {};
+    let unsubscribeRegs = () => { };
     if (currentUser.role === "admin") {
       unsubscribeRegs = subscribeToRegularizationRequests(currentUser.companyId, (data) => {
         const pending = (Array.isArray(data) ? data : []).filter(r => r.status === "pending");
@@ -332,7 +333,7 @@ export default function DashboardLayout({ children }) {
     }
     const seenStr = localStorage.getItem(`seen_leaves_${currentUser.uid}`);
     const seen = seenStr ? JSON.parse(seenStr) : {};
-    
+
     let unseenCount = 0;
     leaveRequestsList.forEach(req => {
       if (!dismissedNotifs.includes(req.id) && seen[req.id] !== req.status && req.status !== "pending") {
@@ -411,16 +412,16 @@ export default function DashboardLayout({ children }) {
     const interval = setInterval(() => {
       const activeTasks = currentUser.tasks.filter(t => !t.completed);
       const now = Date.now();
-      
+
       activeTasks.forEach(async (task) => {
         const lastActionTime = new Date(task.lastReportedAt || task.assignedAt).getTime();
         const hoursSinceAction = (now - lastActionTime) / (1000 * 60 * 60);
-        
+
         // If more than 2 hours passed since last report/assignment
         if (hoursSinceAction > 2) {
           const lastWarningTime = task.lastWarningSentAt ? new Date(task.lastWarningSentAt).getTime() : 0;
           const hoursSinceWarning = (now - lastWarningTime) / (1000 * 60 * 60);
-          
+
           // Only send warning if we haven't sent one in the last 2 hours
           if (hoursSinceWarning > 2) {
             try {
@@ -471,7 +472,7 @@ export default function DashboardLayout({ children }) {
     for (const notif of unreadSystem) {
       await markNotificationRead(notif.id);
     }
-    
+
     // 2. Dismiss active leave/system request notifications
     if (activeNotifications.length > 0) {
       const currentDismissed = localStorage.getItem(`dismissed_leaves_${currentUser.uid}`);
@@ -608,10 +609,10 @@ export default function DashboardLayout({ children }) {
   const activeTabParam = searchParams.get("tab") || "live";
 
   const activeTasksCount = currentUser?.tasks?.filter(t => !t.completed)?.length || 0;
-  
+
   const realUnreadMessagesCount = React.useMemo(() => {
     if (!currentUser || !unreadMessagesData.allMsgs) return 0;
-    
+
     const relevantThreadIds = new Set();
     channels.forEach(ch => {
       if (ch.id === "general" || ch.memberIds?.includes(currentUser.uid)) {
@@ -621,23 +622,23 @@ export default function DashboardLayout({ children }) {
     dmThreads.forEach(dm => {
       relevantThreadIds.add(dm.id);
     });
-    
+
     let receipts = currentUser.teamHubReadReceipts || {};
     try {
       const dedicated = JSON.parse(localStorage.getItem(`teamhub_read_receipts_${currentUser.uid}`) || "{}");
       receipts = { ...receipts, ...dedicated };
-    } catch (e) {}
+    } catch (e) { }
 
     const otherMsgs = unreadMessagesData.allMsgs.filter(m => m.senderId !== currentUser.uid && relevantThreadIds.has(m.threadId));
-    
+
     return otherMsgs.filter(m => {
       const threadReadTime = receipts[m.threadId] || receipts[m.channelId] || "1970-01-01T00:00:00.000Z";
       return new Date(m.timestamp) > new Date(threadReadTime);
     }).length;
   }, [unreadMessagesData.allMsgs, channels, dmThreads, currentUser, readReceiptsVersion]);
-  
+
   const showTeamHubBadge = location.pathname !== "/team-hub" && realUnreadMessagesCount > 0;
-  
+
   const showTasksBadge = activeTasks.length > 0 && clearedItems.tasks !== activeTasks.map(t => t.id).sort().join(",");
   const showProjectsBadge = activeProjects.length > 0 && clearedItems.projects !== activeProjects.sort().join(",");
 
@@ -645,7 +646,7 @@ export default function DashboardLayout({ children }) {
   const { can } = usePermissions();
 
   let menuItems = [];
-  
+
   if (isSuperAdmin) {
     menuItems = [
       {
@@ -1031,7 +1032,7 @@ export default function DashboardLayout({ children }) {
     if (!companyModules || companyModules.length === 0) return true;
     const path = location.pathname;
     const tab = searchParams.get("tab");
-    
+
     if (path === "/project-management" || path === "/project-calendar") {
       return companyModules.includes("projects");
     }
@@ -1086,7 +1087,7 @@ export default function DashboardLayout({ children }) {
           <p className="text-sm text-text-sec leading-relaxed mb-8">
             Your account is not linked to any organization workspace. If you just tried to register, the registration might have failed.
           </p>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full py-3 bg-bg-base hover:bg-border-card text-text-main font-bold text-sm rounded-[12px] border border-border-card transition-all flex items-center justify-center gap-2"
           >
@@ -1111,7 +1112,7 @@ export default function DashboardLayout({ children }) {
       <div className="min-h-screen w-full bg-bg-base flex flex-col items-center justify-center p-6 relative overflow-hidden animate-fade-in text-center">
         <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-10" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-brand-primary filter blur-[150px] opacity-10 pointer-events-none" />
-        
+
         <div className="max-w-[460px] bg-bg-card border border-border-card rounded-[24px] p-10 shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-amber-500/20">
             <Lock size={36} />
@@ -1136,7 +1137,7 @@ export default function DashboardLayout({ children }) {
               <p className="text-xs text-blue-500/80">If you require immediate approval, please contact the global system administrator at <strong>admin@teamcarrezza.com</strong> with your organization name.</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full py-3 bg-bg-base hover:bg-border-card text-text-main font-bold text-sm rounded-[12px] border border-border-card transition-all flex items-center justify-center gap-2"
           >
@@ -1152,7 +1153,7 @@ export default function DashboardLayout({ children }) {
       <div className="min-h-screen w-full bg-bg-base flex flex-col items-center justify-center p-6 relative overflow-hidden animate-fade-in text-center">
         <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-10" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-brand-primary filter blur-[150px] opacity-10 pointer-events-none" />
-        
+
         <div className="max-w-[460px] bg-bg-card border border-border-card rounded-[24px] p-10 shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-rose-500/20">
             <Lock size={36} />
@@ -1162,7 +1163,7 @@ export default function DashboardLayout({ children }) {
           <p className="text-sm text-text-sec leading-relaxed mb-8">
             Your organization's subscription has expired or the workspace has been deactivated. Please contact your organization administrator to recharge the subscription.
           </p>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full py-3 bg-bg-base hover:bg-border-card text-text-main font-bold text-sm rounded-[12px] border border-border-card transition-all flex items-center justify-center gap-2"
           >
@@ -1176,7 +1177,7 @@ export default function DashboardLayout({ children }) {
   const filteredModules = (() => {
     if (!localSearch.trim()) return [];
     const query = localSearch.toLowerCase();
-    return filteredMenuItems.filter(item => 
+    return filteredMenuItems.filter(item =>
       !item.hidden && item.label.toLowerCase().includes(query)
     );
   })();
@@ -1310,7 +1311,7 @@ export default function DashboardLayout({ children }) {
                 src="/logo.png"
                 alt="CGS"
                 className="w-7 h-7 object-contain rounded-[6px] shadow-sm"
-                onError={(e) => { e.target.style.display='none'; }}
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
               <span className="font-extrabold text-sm text-text-main tracking-tight hidden xs:block">CGS</span>
             </div>
@@ -1420,7 +1421,7 @@ export default function DashboardLayout({ children }) {
                   <LifeBuoy size={15} />
                 </button>
 
-                <RaiseTicketModal 
+                <RaiseTicketModal
                   isOpen={showTicketModal}
                   onClose={() => setShowTicketModal(false)}
                   clientName={currentUser?.name || companyName || "HR Administrator"}
@@ -1465,7 +1466,7 @@ export default function DashboardLayout({ children }) {
                             <span className="bg-brand-primary text-white px-2 py-0.5 rounded-full text-[9px] font-bold animate-pulse">
                               {totalUnreadCount} New
                             </span>
-                            <button 
+                            <button
                               onClick={handleMarkAllAsRead}
                               className="text-[10px] text-brand-primary hover:underline font-bold bg-brand-primary/10 px-2 py-0.5 rounded cursor-pointer"
                             >
@@ -1489,21 +1490,20 @@ export default function DashboardLayout({ children }) {
                         {combinedNotifs.slice(0, 15).map((item) => {
                           if (item.isSystemNotif) {
                             return (
-                              <div 
-                                key={item.id} 
+                              <div
+                                key={item.id}
                                 onClick={() => handleSystemNotifClick(item)}
-                                className={`p-2.5 rounded-[12px] border text-xs flex flex-col gap-1 transition-all cursor-pointer ${
-                                  !item.read 
-                                    ? "bg-brand-primary/10 border-brand-primary/20 shadow-sm" 
+                                className={`p-2.5 rounded-[12px] border text-xs flex flex-col gap-1 transition-all cursor-pointer ${!item.read
+                                    ? "bg-brand-primary/10 border-brand-primary/20 shadow-sm"
                                     : "bg-bg-base/30 border-border-card"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-extrabold text-text-main truncate max-w-[150px]">{item.title}</span>
                                   {!item.read && (
                                     <div className="flex items-center gap-2">
                                       <span className="bg-brand-primary text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">NEW</span>
-                                      <button 
+                                      <button
                                         onClick={(e) => { e.stopPropagation(); markNotificationRead(item.id); }}
                                         className="p-1 text-text-mut hover:text-brand-primary hover:bg-brand-primary/10 rounded transition-colors cursor-pointer"
                                         title="Mark as read"
@@ -1539,18 +1539,17 @@ export default function DashboardLayout({ children }) {
                             const isNewUpdate = currentUser?.role !== "admin" && seen[req.id] !== req.status && req.status !== "pending";
 
                             return (
-                              <div 
+                              <div
                                 key={req.id}
                                 onClick={() => {
                                   if (currentUser?.role === "admin") navigate("/admin");
                                   else navigate("/history");
                                   setShowNotifications(false);
                                 }}
-                                className={`p-2.5 rounded-[12px] border text-xs flex flex-col gap-1 transition-all cursor-pointer hover:bg-bg-base/40 ${
-                                  isNewUpdate 
-                                    ? "bg-brand-primary/10 border-brand-primary/20 shadow-sm" 
+                                className={`p-2.5 rounded-[12px] border text-xs flex flex-col gap-1 transition-all cursor-pointer hover:bg-bg-base/40 ${isNewUpdate
+                                    ? "bg-brand-primary/10 border-brand-primary/20 shadow-sm"
                                     : "bg-bg-base/30 border-border-card"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-extrabold text-text-main truncate max-w-[150px]">{req.type}</span>
@@ -1571,7 +1570,7 @@ export default function DashboardLayout({ children }) {
                                   </div>
                                 </div>
                                 <p className="text-[10px] text-text-sec">
-                                  {currentUser?.role === "admin" 
+                                  {currentUser?.role === "admin"
                                     ? `${req.userName} requested ${req.type} (${req.duration}).`
                                     : `Your ${req.type} request for ${req.duration} was ${req.status}.`}
                                 </p>
@@ -1645,7 +1644,7 @@ export default function DashboardLayout({ children }) {
                     <p className="text-sm text-text-sec leading-relaxed mb-6">
                       This module is not active under your organization's current plan subscription. Please contact your organization administrator or upgrade your plan to unlock this feature.
                     </p>
-                    <button 
+                    <button
                       onClick={() => navigate(isAdmin ? "/admin?tab=analytics" : "/dashboard")}
                       className="px-6 py-2.5 bg-brand-primary hover:bg-brand-hover text-white text-xs font-bold rounded-full transition-colors cursor-pointer shadow-md shadow-brand-primary/15"
                     >
@@ -1675,69 +1674,69 @@ export default function DashboardLayout({ children }) {
           className="relative flex flex-col w-[280px] max-w-[85vw] bg-bg-card h-full z-10 border-r border-border-card shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
           style={{ transform: isMobileOpen ? 'translateX(0)' : 'translateX(-100%)' }}
         >
-            {/* Header close trigger */}
-            <div className="py-4 px-5 border-b border-border-card flex items-center justify-between">
-              <Logo size={28} showText={true} />
-              <button
-                onClick={() => setIsMobileOpen(false)}
-                className="w-8 h-8 flex items-center justify-center border border-border-card rounded-[8px] text-text-sec"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          {/* Header close trigger */}
+          <div className="py-4 px-5 border-b border-border-card flex items-center justify-between">
+            <Logo size={28} showText={true} />
+            <button
+              onClick={() => setIsMobileOpen(false)}
+              className="w-8 h-8 flex items-center justify-center border border-border-card rounded-[8px] text-text-sec"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-            {/* Nav links */}
-            <nav className="flex-grow px-3 py-4 space-y-1 overflow-y-auto">
-              {filteredMenuItems.map((item, idx) => {
-                if (item.hidden) return null;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={idx}
-                    onClick={item.onClick}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-[12px] text-sm font-semibold transition-colors cursor-pointer ${item.active
-                      ? "bg-brand-primary text-white"
-                      : "text-text-sec hover:text-brand-primary hover:bg-brand-primary/8"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Icon size={18} className="flex-shrink-0" />
-                      <span className="whitespace-nowrap truncate">{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span className="bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center justify-center animate-pulse min-w-[20px]">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
-
-            {/* Mobile Footer profile */}
-            <div className="p-4 border-t border-border-card flex items-center justify-between bg-bg-base/30">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
-                  {currentUser?.avatar ? (
-                    <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    currentUser?.name ? currentUser.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() : "AP"
+          {/* Nav links */}
+          <nav className="flex-grow px-3 py-4 space-y-1 overflow-y-auto">
+            {filteredMenuItems.map((item, idx) => {
+              if (item.hidden) return null;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={idx}
+                  onClick={item.onClick}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-[12px] text-sm font-semibold transition-colors cursor-pointer ${item.active
+                    ? "bg-brand-primary text-white"
+                    : "text-text-sec hover:text-brand-primary hover:bg-brand-primary/8"
+                    }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon size={18} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap truncate">{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center justify-center animate-pulse min-w-[20px]">
+                      {item.badge}
+                    </span>
                   )}
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-bold text-xs text-text-main truncate max-w-[110px]">{currentUser?.name}</span>
-                  <span className="text-[9px] text-text-mut uppercase font-semibold">{currentUser?.role}</span>
-                </div>
+                </button>
+              );
+            })}
+          </nav>
+
+
+          {/* Mobile Footer profile */}
+          <div className="p-4 border-t border-border-card flex items-center justify-between bg-bg-base/30">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  currentUser?.name ? currentUser.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() : "AP"
+                )}
               </div>
-              <button
-                onClick={handleLogout}
-                className="w-8 h-8 flex items-center justify-center rounded-[8px] hover:bg-red-500/10 text-text-sec hover:text-red-500 transition-colors"
-              >
-                <LogOut size={16} />
-              </button>
+              <div className="flex flex-col text-left">
+                <span className="font-bold text-xs text-text-main truncate max-w-[110px]">{currentUser?.name}</span>
+                <span className="text-[9px] text-text-mut uppercase font-semibold">{currentUser?.role}</span>
+              </div>
             </div>
-          </aside>
+            <button
+              onClick={handleLogout}
+              className="w-8 h-8 flex items-center justify-center rounded-[8px] hover:bg-red-500/10 text-text-sec hover:text-red-500 transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </aside>
       </div>
 
       {/* Quick Check-In Modal */}

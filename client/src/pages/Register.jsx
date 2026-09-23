@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { User, Mail, Lock, Building, Briefcase, Clock, Sparkles, EyeOff, Eye, Hash } from "lucide-react";
+import { User, Mail, Lock, Building, Briefcase, Clock, Sparkles, EyeOff, Eye, Hash, CheckCircle2 } from "lucide-react";
 import Logo from "../components/Logo";
 import { getCompanyBySlug, checkDomainAuthorization } from "../firebase";
 
@@ -20,12 +20,25 @@ export default function Register() {
   const [shiftStart, setShiftStart] = useState("09:00");
   const [shiftEnd, setShiftEnd] = useState("18:00");
   const [loading, setLoading] = useState(false);
+  const [company, setCompany] = useState(null);
+  const [companyLoading, setCompanyLoading] = useState(false);
   const { signup } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const { companySlug } = useParams();
 
-  React.useEffect(() => {
+  // Load company details from slug for the banner
+  useEffect(() => {
+    if (companySlug) {
+      setCompanyLoading(true);
+      getCompanyBySlug(companySlug)
+        .then(comp => { if (comp) setCompany(comp); })
+        .catch(() => {})
+        .finally(() => setCompanyLoading(false));
+    }
+  }, [companySlug]);
+
+  useEffect(() => {
     const updateFavicon = (url) => {
       let link = document.querySelector("link[rel~='icon']");
       if (!link) {
@@ -36,22 +49,14 @@ export default function Register() {
       link.href = url || "/favicon.png";
     };
 
-    if (companySlug) {
-      getCompanyBySlug(companySlug).then(company => {
-        if (company && company.logoBase64) {
-          updateFavicon(company.logoBase64);
-        } else {
-          updateFavicon("/favicon.png");
-        }
-      }).catch(() => {
-        updateFavicon("/favicon.png");
-      });
+    if (company?.logoBase64) {
+      updateFavicon(company.logoBase64);
     } else {
       updateFavicon("/favicon.png");
     }
-    
+
     return () => updateFavicon("/favicon.png");
-  }, [companySlug]);
+  }, [company]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,17 +75,13 @@ export default function Register() {
       const authCheck = await checkDomainAuthorization(email, companySlug);
       if (!authCheck.allowed) {
         setLoading(false);
-        return showToast(authCheck.reason, "error");
+        return showToast(authCheck.reason || "Registration not allowed for this organization.", "error");
       }
 
-      await signup(name, finalDept, finalProgram, email, password, shiftStart, shiftEnd, employeeId, companySlug);
+      // Always register as employee when joining via org link
+      await signup(name, finalDept, finalProgram, email, password, shiftStart, shiftEnd, employeeId, companySlug, "employee");
       showToast("Account registered successfully! Welcome to the portal.", "success");
-
-      if (email.toLowerCase() === "admin@teamcarrezza.com" || email.toLowerCase().includes("superadmin")) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate("/dashboard");
     } catch (error) {
       showToast(error.message || "Failed to register account.", "error");
     } finally {

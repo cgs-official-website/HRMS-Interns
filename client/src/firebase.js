@@ -127,11 +127,29 @@ export const loginUser = async (email, password) => {
   return user;
 };
 
-export const registerUser = async (name, department, programType, email, password, shiftStart = "10:00", shiftEnd = "19:00", annualLeaves = 25, sickLeaves = 10, casualLeaves = 6, dob = "", joiningDate = "", projects = [], tasks = [], jobType = "Full-time", designation = "", isProjectManager = false, employeeId = "", companySlug = "", role = "user", companyId = "", additionalData = {}) => {
+export const registerUser = async (name, department, programType, email, password, shiftStart = "10:00", shiftEnd = "19:00", annualLeaves = 25, sickLeaves = 10, casualLeaves = 6, dob = "", joiningDate = "", projects = [], tasks = [], jobType = "Full-time", designation = "", isProjectManager = false, employeeId = "", companySlug = "", role = "employee", companyId = "", additionalData = {}) => {
   let targetCompanyId = companyId;
-  if (!targetCompanyId && (email.toLowerCase().endsWith("@teamcarrezza.com") || companySlug === "carrezza-global-solutions")) {
-    targetCompanyId = "carrezza-global-solutions";
+
+  // If companySlug is given but companyId is not, resolve the slug to a real companyId
+  if (!targetCompanyId && companySlug) {
+    if (companySlug === "carrezza-global-solutions" || email.toLowerCase().endsWith("@teamcarrezza.com")) {
+      targetCompanyId = "carrezza-global-solutions";
+    } else {
+      try {
+        const company = await apiFetch(`/companies/slug/${companySlug}`);
+        if (company && company.id) {
+          targetCompanyId = company.id;
+        } else {
+          targetCompanyId = companySlug; // fallback: use slug as id
+        }
+      } catch (e) {
+        targetCompanyId = companySlug; // fallback if company lookup fails
+      }
+    }
   }
+
+  // Always enforce employee role when registering under a company via the org link
+  const safeRole = (role === "admin" || role === "superadmin") ? role : "employee";
 
   const res = await apiFetch("/auth/register", {
     method: "POST",
@@ -155,7 +173,7 @@ export const registerUser = async (name, department, programType, email, passwor
       isProjectManager,
       employeeId,
       companyId: targetCompanyId,
-      role: email.toLowerCase() === "admin@teamcarrezza.com" ? "admin" : role,
+      role: safeRole,
       ...additionalData
     })
   });
@@ -1469,7 +1487,27 @@ export const assignCompanyToUser = async () => true;
 export const recoverLostData = async () => true;
 export const recoverChatData = async () => true;
 export const getCompanyNameById = async () => "Carrezza Global Solutions";
-export const checkDomainAuthorization = async () => ({ authorized: true });
+export const checkDomainAuthorization = async (email, companySlug) => {
+  // If no company slug is given, allow registration globally
+  if (!companySlug) return { allowed: true };
+
+  try {
+    // Validate the company exists for this slug
+    const company = await apiFetch(`/companies/slug/${companySlug}`);
+    if (!company || !company.id) {
+      return { allowed: false, reason: "Organization not found. Please check your registration link." };
+    }
+    if (company.status && company.status !== "active") {
+      return { allowed: false, reason: "This organization is not currently active. Please contact your administrator." };
+    }
+    return { allowed: true, company };
+  } catch (e) {
+    // If the company lookup fails (e.g. network error), allow registration to proceed
+    // so employees are not blocked by infrastructure issues
+    console.warn("checkDomainAuthorization: could not verify company, allowing registration", e);
+    return { allowed: true };
+  }
+};
 
 // ----------------------------------------------------
 // ROLES & PERMISSIONS

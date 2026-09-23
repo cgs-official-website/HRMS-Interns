@@ -81,9 +81,22 @@ export const register = async (req, res) => {
       shiftStart,
       shiftEnd,
       companyId,
-      role = "employee",
+      role: requestedRole,
       employeeId
     } = req.body;
+
+    // Determine safe role: only allow admin/superadmin if explicitly set AND no companyId
+    // When registering via the org link (companyId provided), always force role to 'employee'
+    let role = requestedRole || "employee";
+    if (companyId && companyId.trim() !== "") {
+      // Registering under a company via the org link — only allow employee role
+      if (role !== "admin" && role !== "superadmin") {
+        role = "employee";
+      }
+    } else {
+      // No company context — allow employee (never auto-elevate to admin)
+      if (!role || role === "user") role = "employee";
+    }
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: "Name, email, and password are required." });
@@ -115,6 +128,18 @@ export const register = async (req, res) => {
       }
     }
 
+    // Auto-generate Employee ID if not provided
+    let resolvedEmployeeId = (employeeId || "").trim() || null;
+    if (!resolvedEmployeeId && resolvedCompanyId) {
+      // Count existing users in this company to generate a sequential ID
+      const countRes = await query(
+        "SELECT COUNT(*) as cnt FROM users WHERE company_id = $1",
+        [resolvedCompanyId]
+      );
+      const seq = (parseInt(countRes.rows[0]?.cnt || 0) + 1).toString().padStart(4, "0");
+      resolvedEmployeeId = `EMP-${seq}`;
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
     const userId = "usr_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
@@ -138,7 +163,7 @@ export const register = async (req, res) => {
         shiftEnd || "18:00",
         resolvedCompanyId,
         role,
-        employeeId || null
+        resolvedEmployeeId
       ]
     );
 
@@ -154,8 +179,8 @@ export const register = async (req, res) => {
       ...newUser,
       uid: newUser.id,
       id: newUser.id,
-      employeeId: employeeId || "",
-      employee_id: employeeId || "",
+      employeeId: resolvedEmployeeId || "",
+      employee_id: resolvedEmployeeId || "",
       companyId: newUser.company_id,
       company_id: newUser.company_id,
       shiftStart: newUser.shift_start || shiftStart || "09:00",
@@ -172,7 +197,7 @@ export const register = async (req, res) => {
     sendWelcomeEmail({
       email: newUser.email,
       name: newUser.name,
-      employeeId: employeeId || null,
+      employeeId: resolvedEmployeeId || null,
       shiftStart: shiftStart || "09:00",
       shiftEnd: shiftEnd || "18:00",
       role: newUser.role

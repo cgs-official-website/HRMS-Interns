@@ -78,10 +78,10 @@ export default function Profile() {
 
   const handleCopyLink = () => {
     if (adminCompany) {
-      const link = `${window.location.origin}/${adminCompany.slug}/login`;
+      const link = `${window.location.origin}/${adminCompany.slug}/register`;
       navigator.clipboard.writeText(link);
       setCopied(true);
-      showToast("Employee login link copied!", "success");
+      showToast("Employee registration link copied!", "success");
       setTimeout(() => setCopied(false), 3000);
     }
   };
@@ -399,18 +399,18 @@ export default function Profile() {
 
             {isAdmin && adminCompany && (
               <div className="mt-4 p-4 bg-brand-primary/5 rounded-[12px] border border-brand-primary/10 text-left space-y-3">
-                <h4 className="text-[11px] font-bold text-brand-primary uppercase tracking-wider">Organization Link</h4>
+                <h4 className="text-[11px] font-bold text-brand-primary uppercase tracking-wider">Employee Registration Link</h4>
                 <p className="text-[10px] text-text-sec leading-relaxed">
-                  Share this unique link with your employees so they can register under your organization.
+                  Share this unique link with your employees so they can register under your organization as employees.
                 </p>
                 <div className="flex items-center justify-between bg-bg-card border border-border-card rounded-[8px] p-2">
                   <span className="text-[10px] font-mono text-text-main truncate pr-2">
-                    {window.location.origin}/{adminCompany.slug}/login
+                    {window.location.origin}/{adminCompany.slug}/register
                   </span>
                   <button 
                     onClick={handleCopyLink}
                     className="flex-shrink-0 p-1.5 bg-brand-primary hover:bg-brand-hover text-white rounded-[6px] transition-colors cursor-pointer"
-                    title="Copy Link"
+                    title="Copy Registration Link"
                   >
                     {copied ? <Check size={12} /> : <Copy size={12} />}
                   </button>

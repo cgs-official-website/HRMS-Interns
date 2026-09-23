@@ -34,10 +34,10 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const signup = async (name, department, programType, email, password, shiftStart, shiftEnd, employeeId = "", companySlug = "") => {
+  const signup = async (name, department, programType, email, password, shiftStart, shiftEnd, employeeId = "", companySlug = "", role = "employee") => {
     setLoading(true);
     try {
-      await registerUser(name, department, programType, email, password, shiftStart, shiftEnd, 25, 10, 6, "", "", "", [], "Full-time", "", false, employeeId, companySlug);
+      await registerUser(name, department, programType, email, password, shiftStart, shiftEnd, 25, 10, 6, "", "", "", [], "Full-time", "", false, employeeId, companySlug, role);
       const user = await loginUser(email, password);
       setCurrentUser(user);
       return user;
