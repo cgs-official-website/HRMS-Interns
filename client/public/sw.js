@@ -25,16 +25,16 @@ self.addEventListener("push", (event) => {
     data = event.data.json();
   } catch {
     data = {
-      title: "HRMS Notification",
-      body: event.data.text() || "You have a new notification.",
-      url: "/task-management",
+      title: "HRMS Work Report Reminder",
+      body: "Please update your work report.",
+      url: "/dashboard",
       taskId: ""
     };
   }
 
-  const title = data.title || "Task Time Ended";
+  const title = data.title || "HRMS Work Report Reminder";
   const options = {
-    body: data.body || "Your assigned task time has ended. Report has not been submitted.",
+    body: data.body || "Please update your work report.",
     icon: "/favicon.png",
     badge: "/favicon.png",
     // tag: prevents duplicate notifications for the same task (same tag = replaces old one)
@@ -44,7 +44,7 @@ self.addEventListener("push", (event) => {
     requireInteraction: true,
     vibrate: [200, 100, 200],
     data: {
-      url: data.url || "/task-management",
+      url: data.url || "/dashboard",
       taskId: data.taskId || ""
     }
   };

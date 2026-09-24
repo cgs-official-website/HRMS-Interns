@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { usePermissions } from "./hooks/usePermissions";
+import { useEmployeeReminder } from "./hooks/useEmployeeReminder";
 import DashboardLayout from "./components/DashboardLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -22,6 +23,7 @@ import EnvironmentalSetup from "./modules/environmentalSetup/pages/Environmental
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import InactiveAccount from "./pages/InactiveAccount";
+import EmployeeReminderBar from "./components/EmployeeReminderBar";
 
 // Protected Route Component for general logged-in users
 function ProtectedRoute({ children }) {
@@ -116,11 +118,15 @@ function RootRouteRedirect() {
   return <Navigate to="/dashboard" replace />;
 }
 
-export default function App() {
-  const { currentUser } = useAuth();
+function EmployeeReminderManager() {
+  const { reminder, dismissReminder } = useEmployeeReminder();
+  return <EmployeeReminderBar reminder={reminder} onDismiss={dismissReminder} />;
+}
 
+export default function App() {
   return (
     <div className="flex flex-col min-h-screen w-full">
+      <EmployeeReminderManager />
       <Routes>
         {/* Public Routes */}
         <Route 

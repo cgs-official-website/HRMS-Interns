@@ -5,28 +5,8 @@
 // ============================================================
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../firebase";
 
-// Build the correct API base — always include /api
-const buildApiBase = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    // e.g. "http://localhost:5005" -> "http://localhost:5005/api"
-    // or "http://localhost:5005/api" -> keep as-is
-    const base = envUrl.replace(/\/+$/, "");
-    return base.endsWith("/api") ? base : `${base}/api`;
-  }
-  if (typeof window !== "undefined") {
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    return isLocal
-      ? "http://localhost:5005/api"
-      : `${window.location.origin}/api`;
-  }
-  return "http://localhost:5005/api";
-};
-
-const API_BASE = buildApiBase();
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
 
 /**
@@ -41,11 +21,6 @@ const urlBase64ToUint8Array = (base64String) => {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
-};
-
-const getAuthHeader = () => {
-  const token = localStorage.getItem("att_auth_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 export function usePushNotification() {
@@ -80,10 +55,7 @@ export function usePushNotification() {
     const token = localStorage.getItem("att_auth_token");
     if (!token) return;
 
-    fetch(`${API_BASE}/push/status`, {
-      headers: { "Content-Type": "application/json", ...getAuthHeader() }
-    })
-      .then((res) => (res.ok ? res.json() : { isSubscribed: false }))
+    apiFetch("/push/status")
       .then((data) => setIsSubscribed(data.isSubscribed || false))
       .catch(() => {});
   }, [currentUser, isSupported]);
@@ -126,13 +98,10 @@ export function usePushNotification() {
 
       // ── STEP 2: Check VAPID key (needed for actual push subscription) ──
       if (!VAPID_PUBLIC_KEY) {
-        // Permission granted but push not configured on this deployment.
-        // Save that permission was granted at least.
-        setError(
-          "Push subscriptions are not configured on this server. Contact your admin to set up VAPID keys."
-        );
+        // Browser reminders still work without server-side Web Push.
+        setIsSubscribed(true);
         setIsLoading(false);
-        return false;
+        return true;
       }
 
       // ── STEP 3: Register Service Worker ──
@@ -152,23 +121,20 @@ export function usePushNotification() {
 
       // ── STEP 5: Save subscription to server ──
       const subJSON = subscription.toJSON();
-      const response = await fetch(`${API_BASE}/push/subscribe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader()
-        },
-        body: JSON.stringify({
-          endpoint: subJSON.endpoint,
-          keys: {
-            p256dh: subJSON.keys?.p256dh || "",
-            auth: subJSON.keys?.auth || ""
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save push subscription to server.");
+      try {
+        await apiFetch("/push/subscribe", {
+          method: "POST",
+          body: JSON.stringify({
+            endpoint: subJSON.endpoint,
+            keys: {
+              p256dh: subJSON.keys?.p256dh || "",
+              auth: subJSON.keys?.auth || ""
+            }
+          })
+        });
+      } catch (saveError) {
+        // A stale backend must not prevent browser-only reminders.
+        console.warn("Push subscription could not be saved on the server:", saveError);
       }
 
       setIsSubscribed(true);
@@ -195,12 +161,8 @@ export function usePushNotification() {
         if (subscription) {
           const endpoint = subscription.endpoint;
           await subscription.unsubscribe();
-          await fetch(`${API_BASE}/push/unsubscribe`, {
+          await apiFetch("/push/unsubscribe", {
             method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              ...getAuthHeader()
-            },
             body: JSON.stringify({ endpoint })
           }).catch(() => {});
         }

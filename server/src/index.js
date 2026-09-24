@@ -17,6 +17,7 @@ const io = new Server(server, {
   }
 });
 app.set("io", io);
+startTaskScheduler();
 
 io.on("connection", (socket) => {
   console.log(`⚡ Socket client connected: ${socket.id}`);
@@ -51,6 +52,4 @@ server.on("error", (err) => {
 server.listen(PORT, () => {
   console.log(`🚀 HRMS Backend Server running on port ${PORT}`);
   console.log(`📡 Health check available at: http://localhost:${PORT}/api/health`);
-  // Start task end-time scheduler
-  startTaskScheduler();
 });

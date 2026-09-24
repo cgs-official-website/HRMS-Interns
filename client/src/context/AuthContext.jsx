@@ -7,7 +7,8 @@ import {
   getDbType,
   sendPasswordReset,
   confirmPasswordReset,
-  changeUserPassword
+  changeUserPassword,
+  apiFetch
 } from "../firebase";
 
 const AuthContext = createContext();
@@ -33,6 +34,17 @@ export const AuthProvider = ({ children }) => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return undefined;
+
+    const sendHeartbeat = () => {
+      apiFetch("/auth/session/heartbeat", { method: "POST" }).catch(() => {});
+    };
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
 
   const signup = async (name, department, programType, email, password, shiftStart, shiftEnd, employeeId = "", companySlug = "", role = "employee") => {
     setLoading(true);

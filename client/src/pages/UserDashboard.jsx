@@ -2487,7 +2487,7 @@ export default function UserDashboard() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-xs font-bold text-brand-success">
                         <span className="w-2 h-2 rounded-full bg-brand-success animate-pulse inline-block" />
-                        Notifications are active. You will receive a reminder every 1 hour during working hours (9 AM – 6 PM).
+                        Notifications are active. You will receive a reminder every 10 minutes while you are logged in.
                       </div>
                       <button
                         onClick={disableNotifications}
@@ -2500,8 +2500,7 @@ export default function UserDashboard() {
                   ) : (
                     <div className="space-y-3">
                       <p className="text-xs text-text-sec leading-relaxed font-semibold">
-                        Get a browser reminder every 1 hour during working hours (9 AM – 6 PM) to submit your hourly work report.
-                        Works even when this tab is in the background.
+                        Get a browser reminder every 10 minutes to submit your task update/report. It works while this tab is in the background or another application is active.
                       </p>
                       {pushError && (
                         <p className="text-xs text-brand-danger font-semibold">{pushError}</p>

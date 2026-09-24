@@ -1,17 +1,16 @@
 // ============================================================
-// HOURLY REPORT REMINDER SCHEDULER — IST (Asia/Kolkata)
+// REPORT REMINDER SCHEDULER — IST (Asia/Kolkata)
 //
-// Checks every minute and runs only at the exact start of an hour.
+// Checks every minute and runs only at the start of a 10-minute slot.
 // Working hours: 09:00 – 18:00 IST
 //
-// For each employee who has an active push subscription:
+// For each logged-in employee who has an active push subscription:
 //   1. Check if a reminder was already sent for this interval → skip if yes
-//   2. Check if a task_report was submitted during the current hour interval → skip if yes
-//   3. Otherwise → send ONE Web Push "Report Reminder" notification
+//   2. Otherwise → send ONE Web Push "Work Report Reminder" notification
 //   4. Insert a row into hourly_report_reminders to prevent duplicates
 //
-// Notification title : "Report Reminder"
-// Notification body  : "1 hour report submission is due. Please submit your work report."
+// Notification title : "HRMS Work Report Reminder"
+// Notification body  : "Please update your work report."
 // ============================================================
 import cron from "node-cron";
 import { query } from "../config/db.js";
@@ -19,12 +18,13 @@ import { sendWebPush } from "./pushService.js";
 
 // ─── Constants ───────────────────────────────────────────────
 const WORK_START_HOUR = 9;   // 09:00 IST
-const WORK_END_HOUR   = 18;  // 18:00 IST — last reminder sent at 18:00 (for 17:00–18:00 interval)
+const WORK_END_HOUR   = 18;  // 18:00 IST — final reminder slot
+const REMINDER_INTERVAL_MINUTES = 10;
 
 // ─── IST Helpers ─────────────────────────────────────────────
 
 /**
- * Returns the current IST date and the completed wall-clock hour interval.
+ * Returns the current IST date and the current 10-minute wall-clock interval.
  * Breaks and attendance state are intentionally not part of this calculation.
  */
 const getISTInfo = () => {
@@ -41,25 +41,14 @@ const getISTInfo = () => {
   const pad = (n) => String(n).padStart(2, "0");
 
   const dateStr      = `${year}-${month}-${day}`;
-  const intervalStart = `${pad(hour)}:00`;
-  const intervalEnd   = `${pad(hour + 1)}:00`;
+  const slotStartMinute = Math.floor(minute / REMINDER_INTERVAL_MINUTES) * REMINDER_INTERVAL_MINUTES;
+  const slotEndTotalMinutes = hour * 60 + slotStartMinute + REMINDER_INTERVAL_MINUTES;
+  const intervalEndHour = Math.floor(slotEndTotalMinutes / 60);
+  const intervalEndMinute = slotEndTotalMinutes % 60;
+  const intervalStart = `${pad(hour)}:${pad(slotStartMinute)}`;
+  const intervalEnd   = `${pad(intervalEndHour)}:${pad(intervalEndMinute)}`;
 
   return { dateStr, hour, minute, intervalStart, intervalEnd };
-};
-
-/**
- * Convert "HH:MM" IST time string to a UTC ISO timestamp for today.
- * Used to query task_reports.submitted_at (stored as TIMESTAMPTZ in DB).
- */
-const istTimeToUTCiso = (dateStr, timeStr) => {
-  // dateStr = "2026-09-23", timeStr = "09:00"
-  // IST = UTC+5:30, so subtract 5h30m
-  const [h, m] = timeStr.split(":").map(Number);
-  const [yyyy, mm, dd] = dateStr.split("-").map(Number);
-
-  const utcMs =
-    Date.UTC(yyyy, mm - 1, dd, h, m, 0, 0) - (5 * 60 + 30) * 60 * 1000;
-  return new Date(utcMs).toISOString();
 };
 
 // ─── Core Logic ──────────────────────────────────────────────
@@ -68,18 +57,18 @@ const checkAndSendReminders = async () => {
   const { dateStr, hour, minute, intervalStart, intervalEnd } = getISTInfo();
 
   // The office clock is the only trigger. Breaks and attendance state are ignored.
-  if (minute !== 0 || hour < WORK_START_HOUR || hour > WORK_END_HOUR) {
-    if (minute === 0) {
-      console.log(`[HourlyReminder] Outside working hours (${hour}:00 IST) — skipping.`);
+  if (minute % REMINDER_INTERVAL_MINUTES !== 0 || hour < WORK_START_HOUR || hour > WORK_END_HOUR) {
+    if (minute % REMINDER_INTERVAL_MINUTES === 0) {
+      console.log(`[ReportReminder] Outside working hours (${hour}:${String(minute).padStart(2, "0")} IST) — skipping.`);
     }
     return;
   }
 
-  console.log(`[HourlyReminder] Checking interval ${intervalStart}–${intervalEnd} IST on ${dateStr}`);
+  console.log(`[ReportReminder] Checking interval ${intervalStart}–${intervalEnd} IST on ${dateStr}`);
 
   try {
-    // Get all employees who have active push subscriptions
-    // Join with users to get company_id (for tenant isolation)
+    // Only TeachTeam employees receive report reminders. Breaks and attendance
+    // state are intentionally excluded from this selection.
     const subsResult = await query(`
       SELECT
         ps.user_id,
@@ -89,11 +78,21 @@ const checkAndSendReminders = async () => {
         ps.auth
       FROM push_subscriptions ps
       INNER JOIN users u ON u.id = ps.user_id
+      INNER JOIN companies c ON c.id = u.company_id
       WHERE u.status = 'active'
+        AND LOWER(TRIM(u.role)) = 'employee'
+        AND LOWER(TRIM(c.name)) IN ('teachteam', 'techteam')
+        AND EXISTS (
+          SELECT 1
+          FROM auth_sessions s
+          WHERE s.user_id = ps.user_id
+            AND s.expires_at > CURRENT_TIMESTAMP
+            AND s.last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '2 minutes'
+        )
     `);
 
     if (subsResult.rows.length === 0) {
-      console.log("[HourlyReminder] No active push subscriptions found.");
+      console.log("[ReportReminder] No active push subscriptions found.");
       return;
     }
 
@@ -114,21 +113,18 @@ const checkAndSendReminders = async () => {
       });
     }
 
-    console.log(`[HourlyReminder] Processing ${Object.keys(userMap).length} subscribed employee(s)...`);
+    console.log(`[ReportReminder] Processing ${Object.keys(userMap).length} subscribed employee(s)...`);
 
     for (const user of Object.values(userMap)) {
       await processEmployee(user, dateStr, intervalStart, intervalEnd);
     }
   } catch (err) {
-    console.error("[HourlyReminder] checkAndSendReminders error:", err.message);
+    console.error("[ReportReminder] checkAndSendReminders error:", err.message);
   }
 };
 
 /**
- * Process a single employee:
- *   1. Check if reminder already recorded for this interval → skip
- *   2. Check if report was submitted in this interval → skip push, record as report_found
- *   3. Otherwise → send push + record
+ * Process a single logged-in employee without consulting Task Management data.
  */
 const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
   try {
@@ -145,39 +141,16 @@ const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
       return;
     }
 
-    // 2 ── Check if employee submitted a task_report during the interval
-    const intervalStartUTC = istTimeToUTCiso(dateStr, intervalStart);
-    const intervalEndUTC   = istTimeToUTCiso(dateStr, intervalEnd);
-
-    const reportCheck = await query(
-      `SELECT id FROM task_reports
-       WHERE user_id = $1
-         AND submitted_at >= $2
-         AND submitted_at < $3
-       LIMIT 1`,
-      [user.userId, intervalStartUTC, intervalEndUTC]
-    );
-
-    const reportFound = reportCheck.rows.length > 0;
-
-    if (reportFound) {
-      // Report submitted — record it, but don't send notification
-      const claimed = await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, false, true);
-      if (!claimed) return;
-      console.log(`[HourlyReminder] ✅ Report found for user ${user.userId} (${intervalStart}–${intervalEnd}) — no push needed.`);
-      return;
-    }
-
-    // Claim the employee/hour before sending. The unique key makes this atomic
+    // Claim the employee/slot before sending. The unique key makes this atomic
     // across restarts or multiple scheduler instances.
     const claimed = await insertReminderRecord(user.userId, user.companyId, dateStr, intervalStart, intervalEnd, false, false);
     if (!claimed) return;
 
-    // 3 ── No report found → send Web Push notification
+    // 2 ── Send the work-report reminder without reading Task Management data
     const payload = {
-      title: "Report Reminder",
-      body:  "1 hour report submission is due. Please submit your work report.",
-      url:   "/task-management"
+      title: "HRMS Work Report Reminder",
+      body:  "Please update your work report.",
+      url:   "/dashboard"
     };
 
     const expiredEndpoints = [];
@@ -196,7 +169,7 @@ const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
         if (pushErr.message === "SUBSCRIPTION_EXPIRED") {
           expiredEndpoints.push(sub.endpoint);
         } else {
-          console.error(`[HourlyReminder] Push error for user ${user.userId}:`, pushErr.message);
+          console.error(`[ReportReminder] Push error for user ${user.userId}:`, pushErr.message);
         }
       }
     }
@@ -214,11 +187,11 @@ const processEmployee = async (user, dateStr, intervalStart, intervalEnd) => {
 
     console.log(
       sentCount > 0
-        ? `[HourlyReminder] 🔔 Reminder sent to user ${user.userId} for ${intervalStart}–${intervalEnd}`
-        : `[HourlyReminder] ⚠️  No active subscription delivered for user ${user.userId} — recorded as sent.`
+        ? `[ReportReminder] 🔔 Reminder sent to user ${user.userId} for ${intervalStart}–${intervalEnd}`
+        : `[ReportReminder] ⚠️  No active subscription delivered for user ${user.userId} — recorded as sent.`
     );
   } catch (err) {
-    console.error(`[HourlyReminder] processEmployee error for user ${user.userId}:`, err.message);
+    console.error(`[ReportReminder] processEmployee error for user ${user.userId}:`, err.message);
   }
 };
 
@@ -260,21 +233,21 @@ const markReminderSent = async (userId, date, intervalStart, notificationSent) =
 // ─── Scheduler Export ─────────────────────────────────────────
 
 /**
- * Start the hourly report reminder scheduler.
- * Runs at every exact working-hour boundary (IST), from 09:00 through 18:00.
+ * Start the report reminder scheduler.
+ * Runs every 10 minutes (IST), from 09:00 through 18:00.
  */
 export const startTaskScheduler = () => {
-  console.log("⏰ Hourly Report Reminder Scheduler started (fires at top of each hour, IST)");
+  console.log("⏰ Report Reminder Scheduler started (fires every 10 minutes, IST)");
   console.log(`   Working hours: ${WORK_START_HOUR}:00 – ${WORK_END_HOUR}:00 IST`);
 
-  // Check every minute; the handler gates execution to minute 00 in IST.
+  // Check every minute; the handler gates execution to each 10-minute slot in IST.
   cron.schedule("* * * * *", async () => {
     await checkAndSendReminders();
   }, {
     timezone: "Asia/Kolkata"
   });
 
-  // A startup check is also gated to an exact hour, so restarts cannot shift
-  // the office-clock schedule or create a non-hour interval.
+  // A startup check is also gated to a 10-minute boundary, so restarts cannot
+  // shift the office-clock schedule or create a duplicate slot.
   checkAndSendReminders().catch(() => {});
 };

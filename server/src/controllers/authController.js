@@ -1,8 +1,22 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { createHash } from "crypto";
 import { query } from "../config/db.js";
 import { generateToken } from "../middlewares/auth.js";
 import { sendWelcomeEmail, sendPasswordResetEmail } from "../services/emailService.js";
+
+const getTokenFromRequest = (req) => req.headers.authorization?.split(" ")[1] || "";
+const hashToken = (token) => createHash("sha256").update(token).digest("hex");
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+const recordLoginSession = async (userId, token) => {
+  await query(
+    `INSERT INTO auth_sessions (token_hash, user_id, expires_at, last_seen_at)
+     VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+     ON CONFLICT (token_hash) DO UPDATE SET expires_at = $3, last_seen_at = CURRENT_TIMESTAMP`,
+    [hashToken(token), userId, new Date(Date.now() + SESSION_TTL_MS).toISOString()]
+  );
+};
 
 export const login = async (req, res) => {
   try {
@@ -38,6 +52,7 @@ export const login = async (req, res) => {
       role: user.role,
       companyId: user.company_id
     });
+    await recordLoginSession(user.id, token);
 
     const { password_hash, metadata = {}, ...userProfile } = user;
     const meta = metadata && typeof metadata === "object" ? metadata : {};
@@ -174,6 +189,7 @@ export const register = async (req, res) => {
       role: newUser.role,
       companyId: newUser.company_id
     });
+    await recordLoginSession(newUser.id, token);
 
     const mappedUser = {
       ...newUser,
@@ -207,6 +223,35 @@ export const register = async (req, res) => {
   } catch (err) {
     console.error("Registration error:", err);
     res.status(500).json({ error: err.message || "Internal server error during registration." });
+  }
+};
+
+export const heartbeat = async (req, res) => {
+  try {
+    const token = getTokenFromRequest(req);
+    await query(
+      `UPDATE auth_sessions
+       SET last_seen_at = CURRENT_TIMESTAMP
+       WHERE token_hash = $1 AND user_id = $2 AND expires_at > CURRENT_TIMESTAMP`,
+      [hashToken(token), req.user.id]
+    );
+    res.json({ active: true });
+  } catch (err) {
+    console.error("Session heartbeat error:", err);
+    res.status(500).json({ error: "Failed to update session." });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    await query("DELETE FROM auth_sessions WHERE token_hash = $1 AND user_id = $2", [
+      hashToken(getTokenFromRequest(req)),
+      req.user.id
+    ]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ error: "Failed to end session." });
   }
 };
 

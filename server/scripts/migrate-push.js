@@ -54,6 +54,21 @@ async function migrate() {
     `);
     console.log("✅ push_subscriptions indexes created");
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auth_sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_active
+        ON auth_sessions(user_id, last_seen_at, expires_at);
+    `);
+    console.log("✅ auth_sessions table created");
+
     console.log("🎉 All migrations completed successfully!");
   } catch (err) {
     console.error("❌ Migration error:", err);

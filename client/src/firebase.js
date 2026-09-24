@@ -203,6 +203,11 @@ export const registerUser = async (name, department, programType, email, passwor
 };
 
 export const logoutUser = async () => {
+  try {
+    await apiFetch("/auth/logout", { method: "POST" });
+  } catch (e) {
+    console.warn("Could not notify server about logout:", e);
+  }
   localStorage.removeItem("att_auth_token");
   localStorage.removeItem("att_current_user");
   window.dispatchEvent(new Event("local-auth-updated"));
