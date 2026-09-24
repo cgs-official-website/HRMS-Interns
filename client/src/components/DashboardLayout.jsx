@@ -44,6 +44,7 @@ import {
 import Logo from "./Logo";
 import logoImg from "../assets/zuna-logo.png";
 import RaiseTicketModal from "./RaiseTicketModal";
+import TaskNotification from "./TaskNotification";
 import {
   checkIn,
   checkOut,
@@ -1897,6 +1898,9 @@ export default function DashboardLayout({ children }) {
         </div>,
         document.body
       )}
+
+      {/* Bottom-right 10-minute task notification */}
+      {currentUser && <TaskNotification currentUser={currentUser} todayLog={todayLog} />}
     </div>
   );
 }
