@@ -180,6 +180,31 @@ export const sendWelcomeEmail = async ({ email, name, employeeId, shiftStart, sh
 };
 
 /**
+ * 1b. Employee Registration Link Share Email (Admin-triggered)
+ */
+export const sendRegistrationLinkEmail = async ({ email, companyName, registrationLink, senderName }) => {
+  const content = `
+    <h2>You're Invited to Join ${companyName || "Our Organization"}! 🎉</h2>
+    <p>${senderName ? `${senderName} has` : "An administrator has"} invited you to register on the Carrezza HRMS portal for <strong>${companyName || "your organization"}</strong>.</p>
+    
+    <p>Click the button below to complete your employee registration:</p>
+    
+    <div class="btn-container">
+      <a href="${registrationLink}" class="btn">Complete Registration</a>
+    </div>
+
+    <p style="font-size: 13px; color: #64748b;">If the button doesn't work, copy and paste this link into your browser:<br/>
+    <a href="${registrationLink}" style="color: #4f46e5; word-break: break-all;">${registrationLink}</a></p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `Registration Invite - ${companyName || "Carrezza HRMS"}`,
+    html: baseEmailTemplate("Registration Invite", content)
+  });
+};
+
+/**
  * 2. Leave Application Submitted (Notification to Admins / Managers)
  */
 export const sendLeaveRequestNotification = async ({ adminEmail, employeeName, leaveType, startDate, endDate, totalDays, reason }) => {

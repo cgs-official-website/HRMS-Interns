@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { query } from "../config/db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "hrms_jwt_super_secret_railway_2026";
 
@@ -48,19 +49,30 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-export const requireManagerOrAdmin = (req, res, next) => {
+export const requireManagerOrAdmin = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Authentication required." });
   }
 
-  const role = (req.user.role || "").toLowerCase().trim();
-  const isAllowed = role === "admin" || role === "superadmin" || role === "system admin" || role === "systemadmin" || role === "manager" || role === "project manager" || Boolean(req.user?.isProjectManager || req.user?.is_project_manager) || req.user.isAdmin === true;
+  try {
+    const result = await query("SELECT role, is_project_manager FROM users WHERE id = $1", [req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "User not found." });
+    }
 
-  if (!isAllowed) {
-    return res.status(403).json({ error: "Access forbidden. Manager or Admin role required." });
+    const dbUser = result.rows[0];
+    const role = (dbUser.role || "").toLowerCase().trim();
+    const isAllowed = role === "admin" || role === "superadmin" || role === "system admin" || role === "systemadmin" || role === "manager" || role === "project manager" || Boolean(dbUser.is_project_manager);
+
+    if (!isAllowed) {
+      return res.status(403).json({ error: "Access forbidden. Manager or Admin role required." });
+    }
+
+    next();
+  } catch (err) {
+    console.error("requireManagerOrAdmin error:", err);
+    return res.status(500).json({ error: "Failed to verify permissions." });
   }
-
-  next();
 };
 
 export const requireSuperAdmin = (req, res, next) => {

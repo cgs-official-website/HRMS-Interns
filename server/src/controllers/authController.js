@@ -36,7 +36,8 @@ export const login = async (req, res) => {
       id: user.id,
       email: user.email,
       role: user.role,
-      companyId: user.company_id
+      companyId: user.company_id,
+      isProjectManager: user.is_project_manager
     });
 
     const { password_hash, metadata = {}, ...userProfile } = user;

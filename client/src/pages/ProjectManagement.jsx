@@ -1223,33 +1223,33 @@ export default function ProjectManagement() {
     }
   };
 
-  const handleAddTeamMember = async (e) => {
-    e.preventDefault();
-    if (!selectedUserForTeam) return showToast("Please select a user", "warning");
+ const handleAddTeamMember = async (e) => {
+  e.preventDefault();
+  if (!selectedUserForTeam) return showToast("Please select a user", "warning");
+  
+  const targetProjects = currentUser.role === "admin" 
+    ? adminProjectInput.split(',').map(s=>s.trim()).filter(Boolean)
+    : selectedPmProjects;
     
-    const targetProjects = currentUser.role === "admin" 
-      ? adminProjectInput.split(',').map(s=>s.trim()).filter(Boolean)
-      : selectedPmProjects;
-      
-    if (!targetProjects.length) return showToast("Please specify a project", "warning");
+  if (!targetProjects.length) return showToast("Please specify a project", "warning");
 
-    try {
-      const u = allUsers.find(user => user.uid === selectedUserForTeam);
-      const currentProjects = u?.projects?.length ? u.projects : (u?.project ? [u.project] : []);
-      const newProjects = [...new Set([...currentProjects, ...targetProjects])];
-      
-      const updates = { projects: newProjects, project: newProjects[0] || "" };
-      if (currentUser.role === "admin") updates.isProjectManager = true;
-      await updateUserRecord(selectedUserForTeam, updates);
-      showToast(currentUser.role === "admin" ? "Project assigned successfully" : "Team member added successfully", "success");
-      setShowAddTeamModal(false);
-      setSelectedUserForTeam("");
-      setAdminProjectInput("");
-      setSelectedPmProjects([]);
-    } catch (err) {
-      showToast("Failed to add member", "error");
-    }
-  };
+  try {
+    const u = allUsers.find(user => user.uid === selectedUserForTeam);
+    const currentProjects = u?.projects?.length ? u.projects : (u?.project ? [u.project] : []);
+    const newProjects = [...new Set([...currentProjects, ...targetProjects])];
+    
+    const updates = { projects: newProjects, project: newProjects[0] || "" };
+    await updateUserRecord(selectedUserForTeam, updates);
+    showToast(currentUser.role === "admin" ? "Project assigned successfully" : "Team member added successfully", "success");
+    setShowAddTeamModal(false);
+    setSelectedUserForTeam("");
+    setAdminProjectInput("");
+    setSelectedPmProjects([]);
+  } catch (err) {
+    console.error("Add team member error:", err);
+    showToast(err.message || "Failed to add member", "error");
+  }
+};
 
   const handleRemoveMember = async (member) => {
     showConfirm("Remove Team Member", `Are you sure you want to remove ${member.name} from the project?`, async () => {
@@ -2025,12 +2025,17 @@ export default function ProjectManagement() {
                   const totalEstimatedHours = tasks.reduce((sum, t) => sum + (Number(t.duration) || 0), 0);
                   const totalTrackedHours = tasks.reduce((sum, t) => sum + calculateTimeSpent(allTaskReports[t.id] || []), 0);
                   
+                  const completedCount = tasks.filter(t => t.completed).length;
+                  const taskRatio = tasks.length > 0 ? completedCount / tasks.length : 0;
+                  const hoursRatio = totalEstimatedHours > 0 ? Math.min(totalTrackedHours / totalEstimatedHours, 1) : 0;
+
                   let progress = 0;
-                  if (totalEstimatedHours > 0) {
-                    progress = Math.min(100, Math.round((totalTrackedHours / totalEstimatedHours) * 100));
+                  if (tasks.length === 0) {
+                    progress = 0;
+                  } else if (totalEstimatedHours === 0) {
+                    progress = Math.round(taskRatio * 100);
                   } else {
-                    const completed = tasks.filter(t => t.completed).length;
-                    progress = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+                    progress = Math.round(((taskRatio + hoursRatio) / 2) * 100);
                   }
 
                   return (

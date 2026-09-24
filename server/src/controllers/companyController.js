@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { sendRegistrationLinkEmail } from "../services/emailService.js";
 
 export const getCompanies = async (req, res) => {
   try {
@@ -250,5 +251,57 @@ export const deleteCompany = async (req, res) => {
   } catch (err) {
     console.error("deleteCompany error:", err);
     res.status(500).json({ error: "Failed to delete company." });
+  }
+};
+
+export const sendRegistrationLink = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+    const role = (req.user?.role || "").toLowerCase().trim();
+    const isSuperAdmin = role === "superadmin" || role === "system admin" || role === "systemadmin";
+
+    // Non-superadmins can only send links for their own company
+    if (!isSuperAdmin && req.user?.companyId && req.user.companyId !== id) {
+      return res.status(403).json({ error: "Access denied. You can only send registration links for your own company." });
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "A valid email address is required." });
+    }
+
+    const result = await query("SELECT * FROM companies WHERE id = $1", [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Company not found." });
+    }
+    const company = result.rows[0];
+
+    const origin = req.headers.origin || req.headers.referer;
+    let baseUrl = process.env.APP_URL || "https://hrms.teamzuna.in";
+    if (origin) {
+      try {
+        baseUrl = new URL(origin).origin;
+      } catch (e) {}
+    }
+    const registrationLink = `${baseUrl}/${company.slug}/register`;
+
+    const emailResult = await sendRegistrationLinkEmail({
+      email: email.toLowerCase().trim(),
+      companyName: company.name,
+      registrationLink,
+      senderName: req.user?.name || ""
+    });
+
+    if (!emailResult.success && emailResult.reason === "SMTP_NOT_CONFIGURED") {
+      return res.status(500).json({ error: "Email service is not configured on the server." });
+    }
+    if (!emailResult.success) {
+      return res.status(500).json({ error: emailResult.error || "Failed to send registration link email." });
+    }
+
+    res.json({ message: "Registration link sent successfully." });
+  } catch (err) {
+    console.error("sendRegistrationLink error:", err);
+    res.status(500).json({ error: "Failed to send registration link." });
   }
 };

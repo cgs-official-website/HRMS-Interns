@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { updateUserRecord, uploadFileToFirebase, getCompanies, deleteCompany, updateCompanyDetails } from "../firebase";
+import { updateUserRecord, uploadFileToFirebase, getCompanies, deleteCompany, updateCompanyDetails, sendRegistrationLinkEmail } from "../firebase";
 import { User, Mail, Shield, ShieldAlert, Award, Clock, Save, Building, Copy, Check, Eye, Crop, Camera, Trash2, Sliders, Lock } from "lucide-react";
 import ImageEditorModal from "../components/ImageEditorModal";
 
@@ -41,6 +42,9 @@ export default function Profile() {
   const [cloudinaryUploadPreset, setCloudinaryUploadPreset] = useState("");
   const [orgLoading, setOrgLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showShareLinkModal, setShowShareLinkModal] = useState(false);
+  const [shareLinkEmail, setShareLinkEmail] = useState("");
+  const [shareLinkSending, setShareLinkSending] = useState(false);
 
   // Gracefully handle corrupted companyId object
   const actualCompanyId = typeof currentUser?.companyId === 'object' ? currentUser.companyId?.id : currentUser?.companyId;
@@ -85,6 +89,26 @@ export default function Profile() {
       setTimeout(() => setCopied(false), 3000);
     }
   };
+
+  const handleSendRegistrationLink = async (e) => {
+  e.preventDefault();
+  if (!adminCompany) return;
+  const cleanEmail = shareLinkEmail.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return showToast("Please enter a valid email address.", "warning");
+  }
+  setShareLinkSending(true);
+  try {
+    await sendRegistrationLinkEmail(adminCompany.id, cleanEmail);
+    showToast(`Registration link sent to ${cleanEmail}!`, "success");
+    setShowShareLinkModal(false);
+    setShareLinkEmail("");
+  } catch (err) {
+    showToast(err.message || "Failed to send registration link.", "error");
+  } finally {
+    setShareLinkSending(false);
+  }
+};
 
   const handleOrgLogoUpload = (e) => {
     const file = e.target.files[0];
@@ -396,8 +420,7 @@ export default function Profile() {
                 <span className="text-text-main capitalize">{currentUser?.role}</span>
               </div>
             </div>
-
-            {isAdmin && adminCompany && (
+              {isAdmin && adminCompany && (
               <div className="mt-4 p-4 bg-brand-primary/5 rounded-[12px] border border-brand-primary/10 text-left space-y-3">
                 <h4 className="text-[11px] font-bold text-brand-primary uppercase tracking-wider">Employee Registration Link</h4>
                 <p className="text-[10px] text-text-sec leading-relaxed">
@@ -407,15 +430,77 @@ export default function Profile() {
                   <span className="text-[10px] font-mono text-text-main truncate pr-2">
                     {window.location.origin}/{adminCompany.slug}/register
                   </span>
-                  <button 
-                    onClick={handleCopyLink}
-                    className="flex-shrink-0 p-1.5 bg-brand-primary hover:bg-brand-hover text-white rounded-[6px] transition-colors cursor-pointer"
-                    title="Copy Registration Link"
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button 
+                      onClick={handleCopyLink}
+                      className="p-1.5 bg-brand-primary hover:bg-brand-hover text-white rounded-[6px] transition-colors cursor-pointer"
+                      title="Copy Registration Link"
+                    >
+                      {copied ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                    <button 
+                      onClick={() => setShowShareLinkModal(true)}
+                      className="p-1.5 bg-bg-base border border-border-card hover:bg-border-card text-text-sec rounded-[6px] transition-colors cursor-pointer"
+                      title="Send Link via Email"
+                    >
+                      <Mail size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
+            {showShareLinkModal && createPortal(
+              <div className="fixed inset-0 bg-slate-950/45 dark:bg-black/65 backdrop-blur-[12px] flex items-center justify-center z-[99999] p-6 animate-fade-in">
+                <div className="w-full max-w-[400px] bg-bg-card border border-border-card rounded-[24px] p-6 shadow-xl animate-scale-up relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-4 border-b border-border-card pb-4">
+                    <h3 className="font-bold text-lg text-text-main flex items-center gap-2">
+                      <Mail size={18} className="text-brand-primary" />
+                      Send Registration Link
+                    </h3>
+                    <button 
+                      onClick={() => { setShowShareLinkModal(false); setShareLinkEmail(""); }} 
+                      className="text-text-mut hover:text-text-main font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSendRegistrationLink} className="space-y-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-text-sec">Employee Email Address</label>
+                      <input 
+                        type="email" 
+                        placeholder="e.g. employee@example.com"
+                        className="w-full px-3.5 py-2.5 border border-border-card rounded-[12px] bg-bg-base/30 text-xs text-text-main outline-none focus:bg-bg-card focus:border-brand-primary transition-all"
+                        value={shareLinkEmail}
+                        onChange={(e) => setShareLinkEmail(e.target.value)}
+                        required
+                      />
+                      <p className="text-[10px] text-text-mut mt-1">
+                        The employee registration link will be emailed to this address.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border-card mt-4">
+                      <button 
+                        type="button" 
+                        onClick={() => { setShowShareLinkModal(false); setShareLinkEmail(""); }} 
+                        className="py-2 px-4 border border-border-card rounded-[10px] text-xs font-bold text-text-sec hover:bg-bg-base cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={shareLinkSending}
+                        className="py-2 px-4 bg-brand-primary hover:bg-brand-hover text-white rounded-[10px] text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {shareLinkSending ? "Sending..." : "Send Link"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
